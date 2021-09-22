@@ -176,6 +176,20 @@ void ParticleFilter::Initialize(const string& map_file,
   // was received from the log. Initialize the particles accordingly, e.g. with
   // some distribution around the provided location and angle.
   map_.Load(map_file);
+  // sample a few particles from a gaussian around loc and angle
+  const int STARTING_PARTICLES = 5;
+  // const float DELTA_X = 0.05;
+  // const float DELTA_Y = 0.05;
+  // const float DELTA_A = 0.05;
+  // Assume all particles are at the exact location provided
+  for (int i = 0; i < STARTING_PARTICLES; i++) {
+    // float x = rng_.Gaussian(loc.x(), DELTA_X);
+    // float y = rng_.Gaussian(loc.y(), DELTA_Y);
+    // float a = rng_.Gaussian(angle, DELTA_A);
+
+    struct Particle p = {Vector2f(loc.x(), loc.y()), angle, 1.0 / STARTING_PARTICLES};
+    particles_.push_back(p);
+  }
 }
 
 void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, 
