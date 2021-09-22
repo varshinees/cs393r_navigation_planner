@@ -44,6 +44,7 @@ using std::swap;
 using std::vector;
 using Eigen::Vector2f;
 using Eigen::Vector2i;
+using Eigen::Rotation2Df;
 using vector_map::VectorMap;
 
 DEFINE_double(num_particles, 50, "Number of particles");
@@ -160,13 +161,27 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
   // Implement the motion model predict step here, to propagate the particles
   // forward based on odometry.
 
+  const float sigma_x = 0.2;
+  const float sigma_y = 0.2;
+  const float sigma_a = 0.2;
+  std::vector<Particle> new_particles_;
+  for (struct Particle p : particles_) {
+    Rotation2Df r1(p.angle);
+    Vector2f new_loc = p.loc + r1 * (odom_loc - prev_odom_loc_);
+    float new_angle = p.angle + odom_angle - prev_odom_angle_;
+    
+    float new_x = rng_.Gaussian(new_loc.x(), sigma_x);
+    float new_y = rng_.Gaussian(new_loc.y(), sigma_y);
+    float new_a = rng_.Gaussian(new_angle, sigma_a);
 
-  // You will need to use the Gaussian random number generator provided. For
-  // example, to generate a random number from a Gaussian with mean 0, and
-  // standard deviation 2:
-  float x = rng_.Gaussian(0.0, 2.0);
-  printf("Random number drawn from Gaussian distribution with 0 mean and "
-         "standard deviation of 2 : %f\n", x);
+    struct Particle new_p = {Vector2f(new_x, new_y), new_a, p.weight};
+    new_particles_.push_back(new_p);
+  }
+  particles_ = new_particles_;
+
+  // Update prev_odom
+  prev_odom_loc_ = odom_loc;
+  prev_odom_angle_ = odom_angle;
 }
 
 void ParticleFilter::Initialize(const string& map_file,
@@ -177,19 +192,23 @@ void ParticleFilter::Initialize(const string& map_file,
   // some distribution around the provided location and angle.
   map_.Load(map_file);
   // sample a few particles from a gaussian around loc and angle
-  const int STARTING_PARTICLES = 5;
+  const int NUM_PARTICLES = 5;
   // const float DELTA_X = 0.05;
   // const float DELTA_Y = 0.05;
   // const float DELTA_A = 0.05;
   // Assume all particles are at the exact location provided
-  for (int i = 0; i < STARTING_PARTICLES; i++) {
+  for (int i = 0; i < NUM_PARTICLES; i++) {
     // float x = rng_.Gaussian(loc.x(), DELTA_X);
     // float y = rng_.Gaussian(loc.y(), DELTA_Y);
     // float a = rng_.Gaussian(angle, DELTA_A);
 
-    struct Particle p = {Vector2f(loc.x(), loc.y()), angle, 1.0 / STARTING_PARTICLES};
+    struct Particle p = {Vector2f(loc.x(), loc.y()), angle, 1.0 / NUM_PARTICLES};
     particles_.push_back(p);
   }
+
+  // Update prev_odom
+  prev_odom_loc_ = Vector2f(0,0);
+  prev_odom_angle_ = 0;
 }
 
 void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, 
