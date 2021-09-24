@@ -107,11 +107,8 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
       //       my_line.p1.x(),
       //       my_line.p1.y());
 
-      // Check for intersections:
-      // bool intersects = map_line.Intersects(laser_line);
-      // You can also simultaneously check for intersection, and return the point
-      // of intersection:
-      Vector2f *intersection_point_tmp; // Return variable
+      // Check for intersections
+      Vector2f *intersection_point_tmp;
       bool intersects = map_line.Intersection(laser_line, intersection_point_tmp);
 
       if (!intersects) continue;
@@ -150,27 +147,27 @@ void ParticleFilter::Update(const vector<float>& ranges,
   // on the observation likelihood computed by relating the observation to the
   // predicted point cloud.
 
-    vector<Vector2f> predicted_cloud;
-    GetPredictedPointCloud(p_ptr->loc, p_ptr->angle, ranges.size(), range_min, range_max, 
-          angle_min, angle_max, &predicted_cloud);
-    float w = 0.0;
-    for (size_t i = 0; i < ranges.size(); ++i) {
-      // Get the actual range
-      float r = ranges[i];
-      if (r < range_min || r > range_max) {printf("something went wrong on ranges\n");} // for debug
-      
-      // Get the predicted range
-      float a = angle_min + i * (angle_max - angle_min) / ranges.size();
-      Rotation2Df rotation(a);
-      Vector2f mLaserLoc = p_ptr->loc + rotation * kLaserLoc;
-      float x = abs(predicted_cloud[i].x() - mLaserLoc.x());
-      float y = abs(predicted_cloud[i].y() - mLaserLoc.y());
-      float predicted_r = sqrt(pow(x, 2) + pow(y, 2));
+  vector<Vector2f> predicted_cloud;
+  GetPredictedPointCloud(p_ptr->loc, p_ptr->angle, ranges.size(), range_min, range_max, 
+                         angle_min, angle_max, &predicted_cloud);
+  float w = 0.0;
+  for (size_t i = 0; i < ranges.size(); ++i) {
+    // Get the actual range
+    float r = ranges[i];
+    if (r < range_min || r > range_max) {printf("something went wrong on ranges\n");} // for debug
+    
+    // Get the predicted range
+    float a = angle_min + i * (angle_max - angle_min) / ranges.size();
+    Rotation2Df rotation(a);
+    Vector2f mLaserLoc = p_ptr->loc + rotation * kLaserLoc;
+    float x = abs(predicted_cloud[i].x() - mLaserLoc.x());
+    float y = abs(predicted_cloud[i].y() - mLaserLoc.y());
+    float predicted_r = sqrt(pow(x, 2) + pow(y, 2));
 
-      w += calculateLogGaussian(r, SENSOR_STD_DEV, predicted_r);
-    }
+    w += calculateLogGaussian(r, SENSOR_STD_DEV, predicted_r);
+  }
 
-    p_ptr->weight = pow(M_E, w * GAMMA);
+  p_ptr->weight = pow(M_E, w * GAMMA);
 }
 
 void ParticleFilter::Resample() {
@@ -186,9 +183,26 @@ void ParticleFilter::Resample() {
 
   // You will need to use the uniform random number generator provided. For
   // example, to generate a random number between 0 and 1:
-  float x = rng_.UniformRandom(0, 1);
-  printf("Random number drawn from uniform distribution between 0 and 1: %f\n",
-         x);
+  // float x = rng_.UniformRandom(0, 1);
+  // printf("Random number drawn from uniform distribution between 0 and 1: %f\n",
+  //        x);
+  
+  vector<Particle> new_particles;
+  for (size_t i = 0; i < FLAGS_num_particles; ++i) {
+    float rand = rng_.UniformRandom(0, 1);
+    size_t j = 0;
+    while (rand > 0.0) {
+      rand -= particles_[j].weight;
+      j++;
+    }
+    if(rand == 0.0) {
+      j++;
+    }
+    struct Particle p = { Vector2f(particles_[j-1].loc.x(), particles_[j-1].loc.y()), 
+                          particles_[j-1].angle, particles_[j-1].weight};
+    new_particles.push_back(p);
+  }
+  particles_ = new_particles;
 }
 
 void ParticleFilter::ObserveLaser(const vector<float>& ranges,
@@ -197,8 +211,17 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   float angle_min,
                                   float angle_max) {
   // A new laser scan observation is available (in the laser frame)
-  // Call the Update and Resample steps as necessary.
+  float sum = 0.0;
+  for (struct Particle p : particles_) {
+    Update(ranges, range_min, range_max, angle_min, angle_max, &p);
+    sum += p.weight;
+  }
+  // Normalizes the weights
+  for (struct Particle p : particles_) {
+    p.weight /= sum;
+  }
 
+  Resample();
 }
 
 void ParticleFilter::Predict(const Vector2f& odom_loc,
