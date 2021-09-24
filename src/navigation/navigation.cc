@@ -338,7 +338,7 @@ namespace navigation
     float best_score = -100000.0;
     for (float c = MIN_CURVATURE; c <= MAX_CURVATURE; c += CURVATURE_STEP) {
       float score = getScore(c, path);
-      visualization::DrawPathOption(c, path.free_path_length, 0, local_viz_msg_);
+      // visualization::DrawPathOption(c, path.free_path_length, 0, local_viz_msg_);
       if (score > best_score) {
         best_path.curvature = path.curvature;
         best_path.free_path_length = path.free_path_length;
@@ -347,7 +347,7 @@ namespace navigation
         best_score = score;
       }
     }
-    visualization::DrawPathOption(best_path.curvature, best_path.free_path_length, best_path.clearance, local_viz_msg_);
+    // visualization::DrawPathOption(best_path.curvature, best_path.free_path_length, best_path.clearance, local_viz_msg_);
     return best_path;
   }
 
@@ -394,7 +394,7 @@ namespace navigation
     visualization::ClearVisualizationMsg(local_viz_msg_);
     visualization::ClearVisualizationMsg(global_viz_msg_);
 
-    drawVisualizations();
+    // drawVisualizations();
 
     // If odometry has not been initialized, we can't do anything.
     if (!odom_initialized_)
