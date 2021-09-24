@@ -93,7 +93,8 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
     float y_max = range_max * sin(angle_i) + mLaserLoc.y();
     line2f laser_line(x_min, y_min, x_max, y_max); 
 
-    Vector2f *intersection_point = nullptr;
+    Vector2f intersection_point (HORIZON * cos(angle_i), HORIZON * sin(angle_i));
+    Vector2f intersection_point_tmp (0.0, 0.0);
     for (size_t j = 0; j < map_.lines.size(); ++j) {
       const line2f map_line = map_.lines[j];
       // The line2f class has helper functions that will be useful.
@@ -108,30 +109,30 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
       //       my_line.p1.y());
 
       // Check for intersections
-      Vector2f *intersection_point_tmp;
-      bool intersects = map_line.Intersection(laser_line, intersection_point_tmp);
+      bool intersects = map_line.Intersection(laser_line, &intersection_point_tmp);
 
       if (!intersects) continue;
       
       bool closer = false;
-      if (intersection_point == nullptr) {
+      if (abs(intersection_point_tmp.x() - mLaserLoc.x()) < abs(intersection_point.x() - mLaserLoc.x()) ) {
         closer = true;
-      } else if (abs(intersection_point_tmp->x() - mLaserLoc.x()) < abs(intersection_point->x() - mLaserLoc.x()) ) {
-        closer = true;
-      } else if (abs(intersection_point_tmp->y() - mLaserLoc.y()) < abs(intersection_point->y() - mLaserLoc.y()) ) {
+      } else if (abs(intersection_point_tmp.y() - mLaserLoc.y()) < abs(intersection_point.y() - mLaserLoc.y()) ) {
         closer = true;
       }
 
       if(closer) {
-        *intersection_point = *intersection_point_tmp;
+        intersection_point.x() = intersection_point_tmp.x();
+        intersection_point.y() = intersection_point_tmp.y();
       }
     }
-    scan[i] = Vector2f(intersection_point->x(), intersection_point->y());
+    scan[i] = intersection_point;
   }
 }
 
 // returns the log likelihood of x in a Gaussian distribution
 float calculateLogGaussian(float mean, float stddev, float x) {
+  // TODO: update to more robust model
+  // remember we don't want to use 0 outside the window
   return - 0.5 * pow(x - mean, 2) / pow(stddev, 2);
 }
 
@@ -171,24 +172,12 @@ void ParticleFilter::Update(const vector<float>& ranges,
 }
 
 void ParticleFilter::Resample() {
-  // Resample the particles, proportional to their weights.
-  // The current particles are in the `particles_` variable. 
-  // Create a variable to store the new particles, and when done, replace the
-  // old set of particles:
-  // vector<Particle> new_particles';
-  // During resampling: 
-  //    new_particles.push_back(...)
-  // After resampling:
-  // particles_ = new_particles;
-
-  // You will need to use the uniform random number generator provided. For
-  // example, to generate a random number between 0 and 1:
-  // float x = rng_.UniformRandom(0, 1);
-  // printf("Random number drawn from uniform distribution between 0 and 1: %f\n",
-  //        x);
+  // Resample the particles, proportional to their weights
   
+  // TODO resample: 1 )low-variance resampling 2) resample/update less often
+
   vector<Particle> new_particles;
-  for (size_t i = 0; i < FLAGS_num_particles; ++i) {
+  for (size_t i = 0; i < particles_.size(); ++i) {
     float rand = rng_.UniformRandom(0, 1);
     size_t j = 0;
     while (rand > 0.0) {
@@ -199,7 +188,7 @@ void ParticleFilter::Resample() {
       j++;
     }
     struct Particle p = { Vector2f(particles_[j-1].loc.x(), particles_[j-1].loc.y()), 
-                          particles_[j-1].angle, particles_[j-1].weight};
+                          particles_[j-1].angle, 1.0 / particles_.size()};
     new_particles.push_back(p);
   }
   particles_ = new_particles;
@@ -211,6 +200,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   float angle_min,
                                   float angle_max) {
   // A new laser scan observation is available (in the laser frame)
+  // TODO: This should only do anything when the robot has moved 0.15m or rotated 10 degrees
   float sum = 0.0;
   for (struct Particle p : particles_) {
     Update(ranges, range_min, range_max, angle_min, angle_max, &p);
@@ -230,7 +220,6 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
   // A new odometry value is available (in the odom frame)
   // Implement the motion model predict step here, to propagate the particles
   // forward based on odometry.
-
 
   std::vector<Particle> new_particles_;
   for (struct Particle p : particles_) {
@@ -259,7 +248,7 @@ void ParticleFilter::Initialize(const string& map_file,
   // was received from the log. Initialize the particles accordingly, e.g. with
   // some distribution around the provided location and angle.
   map_.Load(map_file);
-  // sample a few particles from a gaussian around loc and angle
+  // TODO: sample a few particles from a gaussian around loc and angle
   // const float DELTA_X = 0.05;
   // const float DELTA_Y = 0.05;
   // const float DELTA_A = 0.05;
@@ -273,6 +262,7 @@ void ParticleFilter::Initialize(const string& map_file,
     particles_.push_back(p);
   }
 
+  // TODO: check this
   // Update prev_odom
   prev_odom_loc_ = Vector2f(0,0);
   prev_odom_angle_ = 0;
@@ -285,9 +275,21 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
   // Compute the best estimate of the robot's location based on the current set
   // of particles. The computed values must be set to the `loc` and `angle`
   // variables to return them. Modify the following assignments:
-  loc = Vector2f(0, 0);
-  angle = 0;
+// TODO: Fix me.
+  float x_sum = 0;
+  float y_sum = 0;
+  float a_sum = 0;
+  for (struct Particle p : particles_) {
+    x_sum += p.loc.x();
+    y_sum += p.loc.y();
+    a_sum += p.angle;
+  }
+  loc = Vector2f(x_sum / particles_.size(), y_sum / particles_.size());
+  angle = a_sum / particles_.size();
 }
 
-
 }  // namespace particle_filter
+
+/*
+1. Does it reset odometry when initialize particle filter?
+*/
