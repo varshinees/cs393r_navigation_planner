@@ -102,6 +102,14 @@ class ParticleFilter {
   Eigen::Vector2f prev_odom_loc_;
   float prev_odom_angle_;
   bool odom_initialized_;
+  const Eigen::Vector2f kLaserLoc = Eigen::Vector2f(0.2, 0);
+
+  // constants
+  const float GAMMA = 1.0; // TODO
+  const float MOTION_X_STD_DEV = 0.2;
+  const float MOTION_Y_STD_DEV = 0.2;
+  const float MOTION_A_STD_DEV = 0.2;
+  const float SENSOR_STD_DEV   = 0.2;
 };
 }  // namespace slam
 
