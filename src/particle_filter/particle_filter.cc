@@ -62,6 +62,7 @@ ParticleFilter::ParticleFilter() :
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   *particles = particles_;
+  // if (debug) printf("particles_ size: %ld\n", particles_.size());
 }
 
 void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
@@ -253,6 +254,7 @@ void ParticleFilter::Initialize(const string& map_file,
   // const float DELTA_Y = 0.05;
   // const float DELTA_A = 0.05;
   // Assume all particles are at the exact location provided
+  particles_.clear();
   for (size_t i = 0; i < FLAGS_num_particles; i++) {
     // float x = rng_.Gaussian(loc.x(), DELTA_X);
     // float y = rng_.Gaussian(loc.y(), DELTA_Y);
@@ -286,6 +288,8 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
   }
   loc = Vector2f(x_sum / particles_.size(), y_sum / particles_.size());
   angle = a_sum / particles_.size();
+  // loc = Vector2f(0,0);
+  // angle = 0;
 }
 
 }  // namespace particle_filter

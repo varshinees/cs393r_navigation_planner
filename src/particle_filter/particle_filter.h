@@ -111,6 +111,8 @@ class ParticleFilter {
   const float MOTION_A_STD_DEV = 0.2;
   const float SENSOR_STD_DEV   = 0.2;
   const float HORIZON = 10.0;
+
+  bool debug = true;
 };
 }  // namespace slam
 
