@@ -56,13 +56,9 @@ namespace particle_filter {
 config_reader::ConfigReader config_reader_({"config/particle_filter.lua"});
 
 ParticleFilter::ParticleFilter() :
-    // prev_odom_loc_(0, 0),
-    // prev_odom_angle_(0),
-    prev_odom_loc_(-1, -1),
-    prev_odom_angle_(-1),
+    prev_odom_loc_(-1000, -1000),
+    prev_odom_angle_(-1000),
     odom_initialized_(false) {
-      // delta_dist = 0.0;
-      // delta_angle = 0.0;
     }
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
@@ -206,11 +202,6 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   float angle_max) {
   // A new laser scan observation is available (in the laser frame)
   // TODO: This should only do anything when the robot has moved 0.15m or rotated 10 degrees
-  // if(delta_dist < 0.15 && delta_angle < 0.1) {
-  //   return;
-  // }
-  // delta_dist = 0.0;
-  // delta_angle = 0.0;
 
   float sum = 0.0;
   for (struct Particle p : particles_) {
@@ -232,16 +223,15 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
   // Implement the motion model predict step here, to propagate the particles
   // forward based on odometry.
 
-  // delta_dist += sqrt(pow(odom_loc.x() - prev_odom_loc_.x(), 2) + pow(odom_loc.y() - prev_odom_loc_.y(), 2));
-  // delta_angle += odom_angle - prev_odom_angle_;
-
   std::vector<Particle> new_particles_;
+  if (debug) printf("odom_loc.x: %.2f, odom_loc.y: %.2f, odom_angle: %.2f\n", 
+      odom_loc.x(), odom_loc.y(), odom_angle);
   for (struct Particle p : particles_) {
-    Rotation2Df r1(p.angle);
-    // Vector2f new_loc = p.loc + r1 * (odom_loc - prev_odom_loc_);
-    // float new_angle = p.angle + odom_angle - prev_odom_angle_;
-    Vector2f new_loc = prev_odom_loc_.x() == -1 ? p.loc : p.loc + r1 * (odom_loc - prev_odom_loc_);
-    float new_angle  = prev_odom_angle_ == -1? p.angle : p.angle + odom_angle - prev_odom_angle_;
+    // TODO: prev_odom or prev_particle_odom
+    Rotation2Df r_map_odom(p.angle-prev_odom_angle_);
+    Vector2f new_loc = prev_odom_loc_.x() == -1000 ? p.loc 
+          : p.loc + r_map_odom * (odom_loc - prev_odom_loc_);
+    float new_angle  = prev_odom_angle_ == -1000? p.angle : p.angle + odom_angle - prev_odom_angle_;
     
     float new_x = rng_.Gaussian(new_loc.x(), MOTION_X_STD_DEV);
     float new_y = rng_.Gaussian(new_loc.y(), MOTION_Y_STD_DEV);
@@ -281,8 +271,6 @@ void ParticleFilter::Initialize(const string& map_file,
 
   // TODO: check this
   // Update prev_odom
-  // prev_odom_loc_ = Vector2f(0,0);
-  // prev_odom_angle_ = 0;
 }
 
 void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, 
@@ -303,8 +291,6 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
   }
   loc = Vector2f(x_sum / particles_.size(), y_sum / particles_.size());
   angle = a_sum / particles_.size();
-  // loc = Vector2f(0,0);
-  // angle = 0;
 }
 
 }  // namespace particle_filter

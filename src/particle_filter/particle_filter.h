@@ -112,9 +112,9 @@ class ParticleFilter {
   const float SENSOR_STD_DEV   = 0.2;
   const float HORIZON = 10.0;
 
+  const float kEpsilon = 1e-4;
+
   bool debug = true;
-  // float delta_dist;
-  // float delta_angle;
 };
 }  // namespace slam
 
