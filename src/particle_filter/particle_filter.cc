@@ -56,13 +56,17 @@ namespace particle_filter {
 config_reader::ConfigReader config_reader_({"config/particle_filter.lua"});
 
 ParticleFilter::ParticleFilter() :
+    // prev_odom_loc_(0, 0),
+    // prev_odom_angle_(0),
     prev_odom_loc_(-1, -1),
     prev_odom_angle_(-1),
-    odom_initialized_(false) {}
+    odom_initialized_(false) {
+      // delta_dist = 0.0;
+      // delta_angle = 0.0;
+    }
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   *particles = particles_;
-  // if (debug) printf("particles_ size: %ld\n", particles_.size());
 }
 
 void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
@@ -202,6 +206,12 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   float angle_max) {
   // A new laser scan observation is available (in the laser frame)
   // TODO: This should only do anything when the robot has moved 0.15m or rotated 10 degrees
+  // if(delta_dist < 0.15 && delta_angle < 0.1) {
+  //   return;
+  // }
+  // delta_dist = 0.0;
+  // delta_angle = 0.0;
+
   float sum = 0.0;
   for (struct Particle p : particles_) {
     Update(ranges, range_min, range_max, angle_min, angle_max, &p);
@@ -222,9 +232,14 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
   // Implement the motion model predict step here, to propagate the particles
   // forward based on odometry.
 
+  // delta_dist += sqrt(pow(odom_loc.x() - prev_odom_loc_.x(), 2) + pow(odom_loc.y() - prev_odom_loc_.y(), 2));
+  // delta_angle += odom_angle - prev_odom_angle_;
+
   std::vector<Particle> new_particles_;
   for (struct Particle p : particles_) {
     Rotation2Df r1(p.angle);
+    // Vector2f new_loc = p.loc + r1 * (odom_loc - prev_odom_loc_);
+    // float new_angle = p.angle + odom_angle - prev_odom_angle_;
     Vector2f new_loc = prev_odom_loc_.x() == -1 ? p.loc : p.loc + r1 * (odom_loc - prev_odom_loc_);
     float new_angle  = prev_odom_angle_ == -1? p.angle : p.angle + odom_angle - prev_odom_angle_;
     

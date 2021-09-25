@@ -106,13 +106,15 @@ class ParticleFilter {
 
   // constants
   const float GAMMA = 1.0; // TODO
-  const float MOTION_X_STD_DEV = 0.2;
-  const float MOTION_Y_STD_DEV = 0.2;
-  const float MOTION_A_STD_DEV = 0.2;
+  const float MOTION_X_STD_DEV = 0.01;
+  const float MOTION_Y_STD_DEV = 0.01;
+  const float MOTION_A_STD_DEV = 0.01;
   const float SENSOR_STD_DEV   = 0.2;
   const float HORIZON = 10.0;
 
   bool debug = true;
+  // float delta_dist;
+  // float delta_angle;
 };
 }  // namespace slam
 
