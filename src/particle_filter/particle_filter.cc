@@ -56,8 +56,8 @@ namespace particle_filter {
 config_reader::ConfigReader config_reader_({"config/particle_filter.lua"});
 
 ParticleFilter::ParticleFilter() :
-    prev_odom_loc_(0, 0),
-    prev_odom_angle_(0),
+    prev_odom_loc_(-1, -1),
+    prev_odom_angle_(-1),
     odom_initialized_(false) {}
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
@@ -225,8 +225,8 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
   std::vector<Particle> new_particles_;
   for (struct Particle p : particles_) {
     Rotation2Df r1(p.angle);
-    Vector2f new_loc = p.loc + r1 * (odom_loc - prev_odom_loc_);
-    float new_angle = p.angle + odom_angle - prev_odom_angle_;
+    Vector2f new_loc = prev_odom_loc_.x() == -1 ? p.loc : p.loc + r1 * (odom_loc - prev_odom_loc_);
+    float new_angle  = prev_odom_angle_ == -1? p.angle : p.angle + odom_angle - prev_odom_angle_;
     
     float new_x = rng_.Gaussian(new_loc.x(), MOTION_X_STD_DEV);
     float new_y = rng_.Gaussian(new_loc.y(), MOTION_Y_STD_DEV);
@@ -266,8 +266,8 @@ void ParticleFilter::Initialize(const string& map_file,
 
   // TODO: check this
   // Update prev_odom
-  prev_odom_loc_ = Vector2f(0,0);
-  prev_odom_angle_ = 0;
+  // prev_odom_loc_ = Vector2f(0,0);
+  // prev_odom_angle_ = 0;
 }
 
 void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, 
