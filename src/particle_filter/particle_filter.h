@@ -88,7 +88,8 @@ void GetPredictedPointCloud(const Eigen::Vector2f& loc,
                               float range_max,
                               float angle_min,
                               float angle_max,
-                              std::vector<Eigen::Vector2f>* scan);
+                              std::vector<Eigen::Vector2f>* scan,
+                              std::vector<geometry::line2f>* laser_line);
 
  private:
 

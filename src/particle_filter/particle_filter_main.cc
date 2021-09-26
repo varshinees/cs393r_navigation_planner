@@ -109,11 +109,12 @@ void PublishParticles() {
 }
 
 void PublishPredictedScan() {
-  const uint32_t kColor = 0x348ceb;
+  const uint32_t kColor = 0xd67d00;
   Vector2f robot_loc(0, 0);
   float robot_angle(0);
   particle_filter_.GetLocation(&robot_loc, &robot_angle);
   vector<Vector2f> predicted_scan;
+  vector<line2f> lasers;
   particle_filter_.GetPredictedPointCloud(
       robot_loc,
       robot_angle,
@@ -122,9 +123,13 @@ void PublishPredictedScan() {
       last_laser_msg_.range_max,
       last_laser_msg_.angle_min,
       last_laser_msg_.angle_max,
-      &predicted_scan);
+      &predicted_scan,
+      &lasers);
   for (const Vector2f& p : predicted_scan) {
     DrawPoint(p, kColor, vis_msg_);
+  }
+  for (const line2f& l : lasers) {
+    DrawLine(Vector2f(l.p0.x(), l.p0.y()), Vector2f(l.p1.x(), l.p1.y()), 0x2ec73b, vis_msg_);
   }
 }
 
