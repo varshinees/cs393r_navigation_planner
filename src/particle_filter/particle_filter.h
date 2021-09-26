@@ -27,9 +27,12 @@
 #include "shared/math/line2d.h"
 #include "shared/util/random.h"
 #include "vector_map/vector_map.h"
+#include "amrl_msgs/VisualizationMsg.h"
 
 #ifndef SRC_PARTICLE_FILTER_H_
 #define SRC_PARTICLE_FILTER_H_
+
+using amrl_msgs::VisualizationMsg;
 
 namespace particle_filter {
 
@@ -78,7 +81,7 @@ class ParticleFilter {
   void Resample();
 
   // For debugging: get predicted point cloud from current location.
-  void GetPredictedPointCloud(const Eigen::Vector2f& loc,
+void GetPredictedPointCloud(const Eigen::Vector2f& loc,
                               const float angle,
                               int num_ranges,
                               float range_min,

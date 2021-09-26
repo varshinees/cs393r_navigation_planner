@@ -30,6 +30,8 @@
 #include "shared/math/line2d.h"
 #include "shared/math/math_util.h"
 #include "shared/util/timer.h"
+#include "visualization/visualization.h"
+#include "amrl_msgs/VisualizationMsg.h"
 
 #include "config_reader/config_reader.h"
 #include "particle_filter.h"
@@ -48,6 +50,7 @@ using Eigen::Rotation2Df;
 using vector_map::VectorMap;
 using std::sin;
 using std::cos;
+using amrl_msgs::VisualizationMsg;
 
 DEFINE_uint32(num_particles, 50, "Number of particles");
 
@@ -64,6 +67,22 @@ ParticleFilter::ParticleFilter() :
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   *particles = particles_;
 }
+
+/*
+// a_loc_in_b and a_angle_in_b is the position of frame A in frame B.
+// object_loc_in_a and object_angle_in_a is the position of the object in frame A.
+// Calculates the position of the object in frame B.
+void ParticleFilter::TransformAToB(const Vector2f& a_loc_in_b, float a_angle_in_b,
+                               const Vector2f& object_loc_in_a, float object_angle_in_a,
+                               Vector2f* loc_ptr, float* angle_ptr) {
+  float& new_angle = *angle_ptr;
+  Vector2f& new_loc = *loc_ptr;
+  
+  Rotation2Df r(a_angle_in_b);
+  new_loc = object_loc_in_a + r * a_loc_in_b;
+  new_angle = a_angle_in_b + object_angle_in_a;
+}
+*/
 
 void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
                                             const float angle,
@@ -84,30 +103,20 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
   scan.resize(num_ranges);
   
   // Fill in the entries of scan
+  float step_size = (angle_max - angle_min) / num_ranges;
+  Rotation2Df r(-angle);
+  Vector2f mLaserLoc = loc + r * kLaserLoc;
   for (size_t i = 0; i < scan.size(); i++) {
-    float angle_i = angle_min + i * (angle_max - angle_min) / num_ranges;
-    Rotation2Df r(angle);
-    Vector2f mLaserLoc = loc + r * kLaserLoc;
-    float x_min = range_min * cos(angle_i) + mLaserLoc.x();
-    float y_min = range_min * sin(angle_i) + mLaserLoc.y();
-    float x_max = range_max * cos(angle_i) + mLaserLoc.x();
-    float y_max = range_max * sin(angle_i) + mLaserLoc.y();
-    line2f laser_line(x_min, y_min, x_max, y_max); 
+    float angle_i = angle_min + i * step_size + angle;
+    Rotation2Df r_i(-angle_i);
+    Vector2f v_min = r_i * Vector2f(range_min, range_min) + mLaserLoc;
+    Vector2f v_max = r_i * Vector2f(range_max, range_max) + mLaserLoc;
+    line2f laser_line(v_min.x(), v_min.y(), v_max.x(), v_max.y());
 
     Vector2f intersection_point (HORIZON * cos(angle_i), HORIZON * sin(angle_i));
     Vector2f intersection_point_tmp (0.0, 0.0);
     for (size_t j = 0; j < map_.lines.size(); ++j) {
       const line2f map_line = map_.lines[j];
-      // The line2f class has helper functions that will be useful.
-      // You can create a new line segment instance as follows, for :
-      
-      // Line segment from (1,2) to (3.4).
-      // Access the end points using `.p0` and `.p1` members:
-      // printf("P0: %f, %f P1: %f,%f\n", 
-      //       my_line.p0.x(),
-      //       my_line.p0.y(),
-      //       my_line.p1.x(),
-      //       my_line.p1.y());
 
       // Check for intersections
       bool intersects = map_line.Intersection(laser_line, &intersection_point_tmp);
