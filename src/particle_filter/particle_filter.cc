@@ -72,8 +72,10 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
                                             float range_max,
                                             float angle_min,
                                             float angle_max,
-                                            vector<Vector2f>* scan_ptr) {
+                                            vector<Vector2f>* scan_ptr,
+                                            vector<line2f>* laser_lines) {
   vector<Vector2f>& scan = *scan_ptr;
+  vector<line2f>& lasers = *laser_lines;
   // Compute what the predicted point cloud would be, if the car was at the pose
   // loc, angle, with the sensor characteristics defined by the provided
   // parameters.
@@ -82,7 +84,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
 
   // Note: The returned values must be set using the `scan` variable:
   scan.resize(num_ranges);
-  
+  lasers.resize(num_ranges);
   // Fill in the entries of scan
   for (size_t i = 0; i < scan.size(); i++) {
     float angle_i = angle_min + i * (angle_max - angle_min) / num_ranges;
@@ -93,6 +95,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
     float x_max = range_max * cos(angle_i) + mLaserLoc.x();
     float y_max = range_max * sin(angle_i) + mLaserLoc.y();
     line2f laser_line(x_min, y_min, x_max, y_max); 
+    lasers.push_back(laser_line);
 
     Vector2f intersection_point (HORIZON * cos(angle_i), HORIZON * sin(angle_i));
     Vector2f intersection_point_tmp (0.0, 0.0);
@@ -150,8 +153,9 @@ void ParticleFilter::Update(const vector<float>& ranges,
   // predicted point cloud.
 
   vector<Vector2f> predicted_cloud;
+  vector<line2f> lasers;
   GetPredictedPointCloud(p_ptr->loc, p_ptr->angle, ranges.size(), range_min, range_max, 
-                         angle_min, angle_max, &predicted_cloud);
+                         angle_min, angle_max, &predicted_cloud, &lasers);
   float w = 0.0;
   for (size_t i = 0; i < ranges.size(); ++i) {
     // Get the actual range
