@@ -224,8 +224,8 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
   // forward based on odometry.
 
   std::vector<Particle> new_particles_;
-  if (debug) printf("odom_loc.x: %.2f, odom_loc.y: %.2f, odom_angle: %.2f\n", 
-      odom_loc.x(), odom_loc.y(), odom_angle);
+  // if (debug) printf("odom_loc.x: %.2f, odom_loc.y: %.2f, odom_angle: %.2f\n", 
+  //     odom_loc.x(), odom_loc.y(), odom_angle);
   for (struct Particle p : particles_) {
     // TODO: prev_odom or prev_particle_odom
     Rotation2Df r_map_odom(p.angle-prev_odom_angle_);
@@ -271,6 +271,8 @@ void ParticleFilter::Initialize(const string& map_file,
 
   // TODO: check this
   // Update prev_odom
+  prev_odom_angle_ = -1000;
+  prev_odom_loc_ = Vector2f(-1000, -1000);
 }
 
 void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, 
