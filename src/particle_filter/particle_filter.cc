@@ -69,20 +69,20 @@ void ParticleFilter::GetParticles(vector<Particle>* particles) const {
 }
 
 /*
-// a_loc_in_b and a_angle_in_b is the position of frame A in frame B.
-// object_loc_in_a and object_angle_in_a is the position of the object in frame A.
-// Calculates the position of the object in frame B.
-void ParticleFilter::TransformAToB(const Vector2f& a_loc_in_b, float a_angle_in_b,
-                               const Vector2f& object_loc_in_a, float object_angle_in_a,
+ * loc_ab and angle_ab is the position of frame A in frame B.
+ * loc_pa and angle_pa is the position of the object p in frame A.
+ * Calculates the position of p in frame B.
+ */
+void ParticleFilter::TransformAToB(const Vector2f& loc_ab, float angle_ab,
+                               const Vector2f& loc_pa, float angle_pa,
                                Vector2f* loc_ptr, float* angle_ptr) {
   float& new_angle = *angle_ptr;
   Vector2f& new_loc = *loc_ptr;
   
-  Rotation2Df r(a_angle_in_b);
-  new_loc = object_loc_in_a + r * a_loc_in_b;
-  new_angle = a_angle_in_b + object_angle_in_a;
+  Rotation2Df r(angle_ab);
+  new_loc = loc_ab + r * loc_pa;
+  new_angle = angle_ab + angle_pa;
 }
-*/
 
 void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
                                             const float angle,
@@ -105,21 +105,27 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
   float step_size = (angle_max - angle_min) / num_ranges;
   Rotation2Df r(angle);
   Vector2f mLaserLoc = loc + r * kLaserLoc;
-  // if (false) printf("angle: %.2f, , loc.x: %.2f, loc.y: %.2f mLaserLoc.x: %.2f, mLaserLoc.y: %.2f\n", 
-  //     angle, loc.x(), loc.y(), mLaserLoc.x(), mLaserLoc.y());
+  float mLaserAngle = angle;
+
   for (size_t i = 0; i < scan.size(); i++) {
     float angle_i = angle_min + i * step_size;
-    // TODO: FIX ME
-    Rotation2Df r_i = (angle_i > M_PI_2 || angle_i < -M_PI_2) ? Rotation2Df(angle_i) : Rotation2Df(-angle_i);
-    Vector2f v_min = mLaserLoc + r * r_i * Vector2f(range_min, 0);
-    Vector2f v_max = mLaserLoc + r * r_i * Vector2f(range_max, 0);
-    line2f laser_line(v_min.x(), v_min.y(), v_max.x(), v_max.y());
+    Rotation2Df r_i(angle_i);
+    Vector2f v_min = r_i * Vector2f(range_min, 0);
+    Vector2f v_max = r_i * Vector2f(range_max, 0);
+    
+    Vector2f loc_min(0,0);
+    float angle_min = 0.0;
+    Vector2f loc_max(0,0);
+    float angle_max = 0.0;
+    TransformAToB(mLaserLoc, mLaserAngle, v_min, angle_i, &loc_min, &angle_min);
+    TransformAToB(mLaserLoc, mLaserAngle, v_max, angle_i, &loc_max, &angle_max);
 
-    // Vector2f debug = r_i * Vector2f(range_max, range_max);
-    // if (angle_i < -M_PI_2)
-    //   printf("angle_i: %.2f, debug.x: %.2f, debug.y:%.2f\n", angle_i, debug.x(), debug.y());
+    line2f laser_line(loc_min.x(), loc_min.y(), loc_max.x(), loc_max.y());
 
-    Vector2f intersection_point (HORIZON * cos(angle_i), HORIZON * sin(angle_i));
+    Vector2f v_horizon = r_i * Vector2f(HORIZON, 0);
+    Vector2f intersection_point(0,0);
+    float angle_default = 0.0;
+    TransformAToB(mLaserLoc, mLaserAngle, v_horizon, angle_i, &intersection_point, &angle_default);
     Vector2f intersection_point_tmp (0.0, 0.0);
     for (size_t j = 0; j < map_.lines.size(); ++j) {
       const line2f map_line = map_.lines[j];
