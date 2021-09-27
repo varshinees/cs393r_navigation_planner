@@ -54,6 +54,12 @@ using amrl_msgs::VisualizationMsg;
 
 DEFINE_uint32(num_particles, 50, "Number of particles");
 
+CONFIG_FLOAT(GAMMA, "GAMMA");
+CONFIG_FLOAT(MOTION_X_STD_DEV, "MOTION_X_STD_DEV");
+CONFIG_FLOAT(MOTION_Y_STD_DEV, "MOTION_Y_STD_DEV");
+CONFIG_FLOAT(MOTION_A_STD_DEV, "MOTION_A_STD_DEV");
+CONFIG_FLOAT(SENSOR_STD_DEV, "SENSOR_STD_DEV");
+
 namespace particle_filter {
 
 config_reader::ConfigReader config_reader_({"config/particle_filter.lua"});
@@ -101,13 +107,16 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
 
   // Note: The returned values must be set using the `scan` variable:
   scan.resize(num_ranges);
-  // Fill in the entries of scan
-  float step_size = (angle_max - angle_min) / num_ranges;
+  
+  // Get laser frame's position relative to the map frame.
   Rotation2Df r(angle);
   Vector2f mLaserLoc = loc + r * kLaserLoc;
   float mLaserAngle = angle;
 
+  // Fill in the entries of scan
+  float step_size = (angle_max - angle_min) / num_ranges;
   for (size_t i = 0; i < scan.size(); i++) {
+    // Transform points location from laser frame to map frame
     float angle_i = angle_min + i * step_size;
     Rotation2Df r_i(angle_i);
     Vector2f v_min = r_i * Vector2f(range_min, 0);
@@ -122,26 +131,25 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
 
     line2f laser_line(loc_min.x(), loc_min.y(), loc_max.x(), loc_max.y());
 
+    // Assumes the intersection point is at horizon if no intersection detected
     Vector2f v_horizon = r_i * Vector2f(HORIZON, 0);
     Vector2f intersection_point(0,0);
     float angle_default = 0.0;
     TransformAToB(mLaserLoc, mLaserAngle, v_horizon, angle_i, &intersection_point, &angle_default);
+    
+    // Get closest interesction
     Vector2f intersection_point_tmp (0.0, 0.0);
     for (size_t j = 0; j < map_.lines.size(); ++j) {
       const line2f map_line = map_.lines[j];
-
-      // Check for intersections
       bool intersects = map_line.Intersection(laser_line, &intersection_point_tmp);
-
       if (!intersects) continue;
       
       bool closer = false;
-      if (abs(intersection_point_tmp.x() - mLaserLoc.x()) < abs(intersection_point.x() - mLaserLoc.x()) ) {
+      if (abs(intersection_point_tmp.x() - mLaserLoc.x()) < abs(intersection_point.x() - mLaserLoc.x()) )
         closer = true;
-      } else if (abs(intersection_point_tmp.y() - mLaserLoc.y()) < abs(intersection_point.y() - mLaserLoc.y()) ) {
+      else if (abs(intersection_point_tmp.y() - mLaserLoc.y()) < abs(intersection_point.y() - mLaserLoc.y()))
         closer = true;
-      }
-
+      
       if(closer) {
         intersection_point.x() = intersection_point_tmp.x();
         intersection_point.y() = intersection_point_tmp.y();
@@ -187,10 +195,10 @@ void ParticleFilter::Update(const vector<float>& ranges,
     float y = abs(predicted_cloud[i].y() - mLaserLoc.y());
     float predicted_r = sqrt(pow(x, 2) + pow(y, 2));
 
-    w += calculateLogGaussian(r, SENSOR_STD_DEV, predicted_r);
+    w += calculateLogGaussian(r, CONFIG_SENSOR_STD_DEV, predicted_r);
   }
 
-  p_ptr->weight = pow(M_E, w * GAMMA);
+  p_ptr->weight = pow(M_E, w * CONFIG_GAMMA);
 }
 
 void ParticleFilter::Resample() {
@@ -249,14 +257,15 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
   //     odom_loc.x(), odom_loc.y(), odom_angle);
   for (struct Particle p : particles_) {
     // TODO: prev_odom or prev_particle_odom
+
     Rotation2Df r_map_odom(p.angle-prev_odom_angle_);
     Vector2f new_loc = prev_odom_loc_.x() == -1000 ? p.loc 
           : p.loc + r_map_odom * (odom_loc - prev_odom_loc_);
     float new_angle  = prev_odom_angle_ == -1000? p.angle : p.angle + odom_angle - prev_odom_angle_;
     
-    float new_x = rng_.Gaussian(new_loc.x(), MOTION_X_STD_DEV);
-    float new_y = rng_.Gaussian(new_loc.y(), MOTION_Y_STD_DEV);
-    float new_a = rng_.Gaussian(new_angle, MOTION_A_STD_DEV);
+    float new_x = rng_.Gaussian(new_loc.x(), CONFIG_MOTION_X_STD_DEV);
+    float new_y = rng_.Gaussian(new_loc.y(), CONFIG_MOTION_Y_STD_DEV);
+    float new_a = rng_.Gaussian(new_angle, CONFIG_MOTION_A_STD_DEV);
 
     struct Particle new_p = {Vector2f(new_x, new_y), new_a, p.weight};
     new_particles_.push_back(new_p);
