@@ -160,7 +160,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
 }
 
 // returns the log likelihood of x in a Gaussian distribution
-float calculateLogGaussian(float mean, float stddev, float x) {
+float calculateLogGaussian(float mean, float x, float stddev) {
   // TODO: update to more robust model
   // remember we don't want to use 0 outside the window
   return - 0.5 * pow(x - mean, 2) / pow(stddev, 2);
@@ -172,30 +172,26 @@ void ParticleFilter::Update(const vector<float>& ranges,
                             float angle_min,
                             float angle_max,
                             Particle* p_ptr) {
-  // Implement the update step of the particle filter here.
-  // You will have to use the `GetPredictedPointCloud` to predict the expected
-  // observations for each particle, and assign weights to the particles based
-  // on the observation likelihood computed by relating the observation to the
-  // predicted point cloud.
-
+  // Predict the expected observations for the particle
   vector<Vector2f> predicted_cloud;
   GetPredictedPointCloud(p_ptr->loc, p_ptr->angle, ranges.size(), range_min, range_max, 
                          angle_min, angle_max, &predicted_cloud);
+  
+  // Assign weights to the particles based on the observation likelihood
   float w = 0.0;
   for (size_t i = 0; i < ranges.size(); ++i) {
     // Get the actual range
-    float r = ranges[i];
-    if (r < range_min || r > range_max) {printf("something went wrong on ranges\n");} // for debug
+    float actual_r = ranges[i];
+    if (actual_r < range_min || actual_r > range_max) {printf("something went wrong on ranges\n");} // for debug
     
     // Get the predicted range
-    float a = angle_min + i * (angle_max - angle_min) / ranges.size();
-    Rotation2Df rotation(a);
+    Rotation2Df rotation(p_ptr->angle);
     Vector2f mLaserLoc = p_ptr->loc + rotation * kLaserLoc;
-    float x = abs(predicted_cloud[i].x() - mLaserLoc.x());
-    float y = abs(predicted_cloud[i].y() - mLaserLoc.y());
+    float x = predicted_cloud[i].x() - mLaserLoc.x();
+    float y = predicted_cloud[i].y() - mLaserLoc.y();
     float predicted_r = sqrt(pow(x, 2) + pow(y, 2));
 
-    w += calculateLogGaussian(r, CONFIG_SENSOR_STD_DEV, predicted_r);
+    w += calculateLogGaussian(actual_r, predicted_r, CONFIG_SENSOR_STD_DEV);
   }
 
   p_ptr->weight = pow(M_E, w * CONFIG_GAMMA);
@@ -256,13 +252,17 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
   // if (debug) printf("odom_loc.x: %.2f, odom_loc.y: %.2f, odom_angle: %.2f\n", 
   //     odom_loc.x(), odom_loc.y(), odom_angle);
   for (struct Particle p : particles_) {
-    // TODO: prev_odom or prev_particle_odom
+    // Get a new particle
+    Vector2f new_loc = p.loc;
+    float new_angle = p.angle;
+    if(prev_odom_angle_ != -1000) {
+      // TODO: Approximate the angle between map and odom frame?
+      Rotation2Df r(p.angle - prev_odom_angle_);
+      new_loc = p.loc + r * (odom_loc - prev_odom_loc_);
+      new_angle = p.angle + odom_angle - prev_odom_angle_;
+    }
 
-    Rotation2Df r_map_odom(p.angle-prev_odom_angle_);
-    Vector2f new_loc = prev_odom_loc_.x() == -1000 ? p.loc 
-          : p.loc + r_map_odom * (odom_loc - prev_odom_loc_);
-    float new_angle  = prev_odom_angle_ == -1000? p.angle : p.angle + odom_angle - prev_odom_angle_;
-    
+    // Add noises
     float new_x = rng_.Gaussian(new_loc.x(), CONFIG_MOTION_X_STD_DEV);
     float new_y = rng_.Gaussian(new_loc.y(), CONFIG_MOTION_Y_STD_DEV);
     float new_a = rng_.Gaussian(new_angle, CONFIG_MOTION_A_STD_DEV);
