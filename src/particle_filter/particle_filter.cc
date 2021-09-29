@@ -183,7 +183,9 @@ void ParticleFilter::Update(const vector<float>& ranges,
   for (size_t i = 0; i < ranges.size() / downsample_rate; ++i) {
     // Get the actual range
     float actual_r = ranges[i * downsample_rate];
-    if (actual_r < range_min || actual_r > range_max) {printf("something went wrong on ranges\n");} // for debug
+    // skip when laser reading is out of range
+    if (actual_r < range_min || actual_r > range_max)
+      continue;
     
     // Get the predicted range
     Rotation2Df rotation(p_ptr->angle);
@@ -239,7 +241,9 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   // Normalizes the weights
   for (Particle &p : particles_) {
     p.weight = pow(M_E, p.weight - w_max);
+    cout << "p.weight " << p.weight << endl;
   }
+  cout << endl;
 
   Resample();
 }
@@ -288,17 +292,17 @@ void ParticleFilter::Initialize(const string& map_file,
   // some distribution around the provided location and angle.
   map_.Load(map_file);
   // TODO: sample a few particles from a gaussian around loc and angle
-  // const float DELTA_X = 0.05;
-  // const float DELTA_Y = 0.05;
-  // const float DELTA_A = 0.05;
+  const float DELTA_X = 0.05;
+  const float DELTA_Y = 0.05;
+  const float DELTA_A = 0.05;
   // Assume all particles are at the exact location provided
   particles_.clear();
   for (size_t i = 0; i < FLAGS_num_particles; i++) {
-    // float x = rng_.Gaussian(loc.x(), DELTA_X);
-    // float y = rng_.Gaussian(loc.y(), DELTA_Y);
-    // float a = rng_.Gaussian(angle, DELTA_A);
+    float x = rng_.Gaussian(loc.x(), DELTA_X);
+    float y = rng_.Gaussian(loc.y(), DELTA_Y);
+    float a = rng_.Gaussian(angle, DELTA_A);
 
-    struct Particle p = {Vector2f(loc.x(), loc.y()), angle, 1.0 / FLAGS_num_particles};
+    struct Particle p = {Vector2f(x, y), a, 1.0 / FLAGS_num_particles};
     particles_.push_back(p);
   }
 
