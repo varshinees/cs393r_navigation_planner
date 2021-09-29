@@ -174,14 +174,15 @@ void ParticleFilter::Update(const vector<float>& ranges,
                             Particle* p_ptr) {
   // Predict the expected observations for the particle
   vector<Vector2f> predicted_cloud;
-  GetPredictedPointCloud(p_ptr->loc, p_ptr->angle, ranges.size(), range_min, range_max, 
+  size_t downsample_rate = 30;
+  GetPredictedPointCloud(p_ptr->loc, p_ptr->angle, ranges.size() / downsample_rate, range_min, range_max, 
                          angle_min, angle_max, &predicted_cloud);
   
   // Assign weights to the particles based on the observation likelihood
   float w = 0.0;
-  for (size_t i = 0; i < ranges.size(); ++i) {
+  for (size_t i = 0; i < ranges.size() / downsample_rate; ++i) {
     // Get the actual range
-    float actual_r = ranges[i];
+    float actual_r = ranges[i * downsample_rate];
     if (actual_r < range_min || actual_r > range_max) {printf("something went wrong on ranges\n");} // for debug
     
     // Get the predicted range
@@ -193,17 +194,20 @@ void ParticleFilter::Update(const vector<float>& ranges,
 
     w += calculateLogGaussian(actual_r, predicted_r, CONFIG_SENSOR_STD_DEV);
   }
-
-  p_ptr->weight = pow(M_E, w * CONFIG_GAMMA);
+  p_ptr->weight = w * CONFIG_GAMMA;
 }
 
 void ParticleFilter::Resample() {
   // Resample the particles, proportional to their weights
   // TODO resample: 1 )low-variance resampling 2) resample/update less often
 
+  float w_sum = 0.0;
+  for(Particle p : particles_) {
+    w_sum += p.weight;
+  }
   vector<Particle> new_particles;
   for (size_t i = 0; i < particles_.size(); ++i) {
-    float rand = rng_.UniformRandom(0, 1);
+    float rand = rng_.UniformRandom(0, w_sum);
     size_t j = 0;
     while (rand > 0.0) {
       rand -= particles_[j].weight;
@@ -227,14 +231,14 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   // A new laser scan observation is available (in the laser frame)
   // TODO: This should only do anything when the robot has moved 0.15m or rotated 10 degrees
 
-  float sum = 0.0;
-  for (struct Particle p : particles_) {
+  double w_max = -std::numeric_limits<double>::max();
+  for (Particle &p : particles_) {
     Update(ranges, range_min, range_max, angle_min, angle_max, &p);
-    sum += p.weight;
+    w_max = p.weight > w_max ? p.weight : w_max;
   }
   // Normalizes the weights
-  for (struct Particle p : particles_) {
-    p.weight /= sum;
+  for (Particle &p : particles_) {
+    p.weight = pow(M_E, p.weight - w_max);
   }
 
   Resample();
@@ -330,4 +334,5 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
 1. Is it okay that the particles are slightly behnd the car?
 2. What's the problem here-- could it be a bug in our code or just an issue of tuning?
 3. flashes --> getLocation is called?
+4. weight normalization: where do we do exponential and where should we keep log
 */
