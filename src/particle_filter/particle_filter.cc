@@ -174,7 +174,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
                             Particle* p_ptr) {
   // Predict the expected observations for the particle
   vector<Vector2f> predicted_cloud;
-  size_t downsample_rate = 30;
+  size_t downsample_rate = 20;
   GetPredictedPointCloud(p_ptr->loc, p_ptr->angle, ranges.size() / downsample_rate, range_min, range_max, 
                          angle_min, angle_max, &predicted_cloud);
   
