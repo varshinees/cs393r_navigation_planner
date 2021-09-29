@@ -199,7 +199,6 @@ void ParticleFilter::Update(const vector<float>& ranges,
 
 void ParticleFilter::Resample() {
   // Resample the particles, proportional to their weights
-  
   // TODO resample: 1 )low-variance resampling 2) resample/update less often
 
   vector<Particle> new_particles;
@@ -328,5 +327,7 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
 }  // namespace particle_filter
 
 /*
-1. Does it reset odometry when initialize particle filter?
+1. Is it okay that the particles are slightly behnd the car?
+2. What's the problem here-- could it be a bug in our code or just an issue of tuning?
+3. flashes --> getLocation is called?
 */
