@@ -202,19 +202,19 @@ void ParticleFilter::Resample() {
   // TODO resample: 1 )low-variance resampling 2) resample/update less often
 
   vector<Particle> new_particles;
+  float rand = rng_.UniformRandom(0, 1);
+  float step = 1.0 / FLAGS_num_particles;
   for (size_t i = 0; i < particles_.size(); ++i) {
-    float rand = rng_.UniformRandom(0, 1);
+    rand = rand >= 1.0 ? rand - 1.0 : rand;
     size_t j = 0;
-    while (rand > 0.0) {
+    while (rand >= 0.0) {
       rand -= particles_[j].weight;
-      j++;
-    }
-    if(rand == 0.0) {
       j++;
     }
     struct Particle p = { Vector2f(particles_[j-1].loc.x(), particles_[j-1].loc.y()), 
                           particles_[j-1].angle, 1.0 / particles_.size()};
     new_particles.push_back(p);
+    rand += step;
   }
   particles_ = new_particles;
 }
