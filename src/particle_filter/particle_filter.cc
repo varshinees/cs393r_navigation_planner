@@ -200,15 +200,18 @@ void ParticleFilter::Update(const vector<float>& ranges,
 void ParticleFilter::Resample() {
   // Resample the particles, proportional to their weights
   // TODO resample: 1 )low-variance resampling 2) resample/update less often
-
   vector<Particle> new_particles;
   float rand = rng_.UniformRandom(0, 1);
   float step = 1.0 / FLAGS_num_particles;
   for (size_t i = 0; i < particles_.size(); ++i) {
     rand = rand >= 1.0 ? rand - 1.0 : rand;
+
     size_t j = 0;
-    while (rand >= 0.0) {
-      rand -= particles_[j].weight;
+    float rand_cp = rand;
+    // if ( abs(particles_[j].weight-0.02) >= kEpsilon )
+    //   cout << particles_[j].weight << endl;
+    while (rand_cp >= 0.0) {
+      rand_cp -= particles_[j].weight;
       j++;
     }
     struct Particle p = { Vector2f(particles_[j-1].loc.x(), particles_[j-1].loc.y()), 
