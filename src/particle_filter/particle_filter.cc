@@ -59,6 +59,9 @@ CONFIG_FLOAT(MOTION_X_STD_DEV, "MOTION_X_STD_DEV");
 CONFIG_FLOAT(MOTION_Y_STD_DEV, "MOTION_Y_STD_DEV");
 CONFIG_FLOAT(MOTION_A_STD_DEV, "MOTION_A_STD_DEV");
 CONFIG_FLOAT(SENSOR_STD_DEV, "SENSOR_STD_DEV");
+CONFIG_FLOAT(D_SHORT, "D_SHORT");
+CONFIG_FLOAT(P_OUTSIDE_RANGE, "P_OUTSIDE_RANGE");
+CONFIG_FLOAT(D_LONG, "D_LONG");
 
 namespace particle_filter {
 
@@ -160,10 +163,18 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
 }
 
 // returns the log likelihood of x in a Gaussian distribution
-float calculateLogGaussian(float mean, float x, float stddev) {
+float calculateLogGaussian(float mean, float x, float stddev, float range_min, float range_max) {
   // TODO: update to more robust model
   // remember we don't want to use 0 outside the window
-  return - 0.5 * pow(x - mean, 2) / pow(stddev, 2);
+  if (x < range_min || x > range_max) {
+    return CONFIG_P_OUTSIDE_RANGE;
+  } else if (x < mean - CONFIG_D_SHORT) {
+    return - pow(CONFIG_D_SHORT, 2) / pow(stddev, 2);
+  } else if (x > mean + CONFIG_D_LONG) {
+    return - pow(CONFIG_D_LONG, 2) / pow(stddev, 2);
+  } else {
+    return - pow(x - mean, 2) / pow(stddev, 2);
+  }
 }
 
 void ParticleFilter::Update(const vector<float>& ranges,
@@ -183,8 +194,8 @@ void ParticleFilter::Update(const vector<float>& ranges,
   for (size_t i = 0; i < ranges.size() / downsample_rate; ++i) {
     // Get the actual range
     float actual_r = ranges[i * downsample_rate];
-    // skip when laser reading is out of range
-    if (actual_r < range_min || actual_r > range_max)
+    // Ignore invalid readings
+    if(actual_r < range_min || actual_r > range_max)
       continue;
     
     // Get the predicted range
@@ -194,7 +205,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
     float y = predicted_cloud[i].y() - mLaserLoc.y();
     float predicted_r = sqrt(pow(x, 2) + pow(y, 2));
 
-    w += calculateLogGaussian(actual_r, predicted_r, CONFIG_SENSOR_STD_DEV);
+    w += calculateLogGaussian(actual_r, predicted_r, CONFIG_SENSOR_STD_DEV, range_min, range_max);
   }
   p_ptr->weight = w * CONFIG_GAMMA;
 }
@@ -292,16 +303,12 @@ void ParticleFilter::Initialize(const string& map_file,
   // was received from the log. Initialize the particles accordingly, e.g. with
   // some distribution around the provided location and angle.
   map_.Load(map_file);
-  // TODO: sample a few particles from a gaussian around loc and angle
-  const float DELTA_X = 0.05;
-  const float DELTA_Y = 0.05;
-  const float DELTA_A = 0.05;
-  // Assume all particles are at the exact location provided
+  // Sample particles from a gaussian around loc and angle
   particles_.clear();
   for (size_t i = 0; i < FLAGS_num_particles; i++) {
-    float x = rng_.Gaussian(loc.x(), DELTA_X);
-    float y = rng_.Gaussian(loc.y(), DELTA_Y);
-    float a = rng_.Gaussian(angle, DELTA_A);
+    float x = rng_.Gaussian(loc.x(), CONFIG_MOTION_X_STD_DEV);
+    float y = rng_.Gaussian(loc.y(), CONFIG_MOTION_Y_STD_DEV);
+    float a = rng_.Gaussian(angle, CONFIG_MOTION_A_STD_DEV);
 
     struct Particle p = {Vector2f(x, y), a, 1.0 / FLAGS_num_particles};
     particles_.push_back(p);
