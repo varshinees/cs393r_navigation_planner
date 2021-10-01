@@ -16,7 +16,7 @@ init_r = 0
 -- log data
 GAMMA = 0.02;
 SENSOR_STD_DEV   = 0.5;
-D_SHORT = SENSOR_STD_DEV * 1.5;
+D_SHORT = SENSOR_STD_DEV * 2.0; --TODO
 D_LONG = SENSOR_STD_DEV * 2.5;
 P_OUTSIDE_RANGE = 1e-4;
 
@@ -24,10 +24,10 @@ MOTION_X_STD_DEV = 0.15;
 MOTION_Y_STD_DEV = 0.15;
 MOTION_A_STD_DEV = 0.01;
 
-MOTION_DIST_K1 = 1.0;
+MOTION_DIST_K1 = 1.1;
 MOTION_DIST_K2 = 0.5;
 MOTION_A_K1 = 0.5;
-MOTION_A_K2 = 1.5;
+MOTION_A_K2 = 1.0;
 
 -- 22-44 go-straight --> turn --> go-straight
 -- 23-38 go-straight --> turn --> go-straight (hard)
@@ -36,4 +36,3 @@ MOTION_A_K2 = 1.5;
 -- 09-24 go back and forth
 -- 08-55 go back and forth
 -- 14-01 go bach and forth
-

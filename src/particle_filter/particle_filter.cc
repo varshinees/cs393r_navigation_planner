@@ -247,21 +247,28 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                                   float angle_min,
                                   float angle_max) {
   // A new laser scan observation is available (in the laser frame)
-  // TODO: This should only do anything when the robot has moved 0.15m or rotated 10 degrees
+  
+  // This should only do anything when the robot has moved 0.15m or rotated 10 degrees
+  if (d_dist < MAX_D_DIST && d_angle < MAX_D_ANGLE)
+    return;
+  
+  d_dist = 0.0;
+  d_angle = 0.0;
 
+  // Updates
   double w_max = -std::numeric_limits<double>::max();
   for (Particle &p : particles_) {
     Update(ranges, range_min, range_max, angle_min, angle_max, &p);
     w_max = p.weight > w_max ? p.weight : w_max;
   }
-  // Normalizes the weights
-  for (Particle &p : particles_) {
-    p.weight = pow(M_E, p.weight - w_max);
-    // cout << "p.weight " << p.weight << endl;
-  }
-  // cout << endl;
+  updated = !updated;
 
-  Resample();
+  // Normalizes the weights
+  for (Particle &p : particles_)
+    p.weight = pow(M_E, p.weight - w_max);
+
+  if (!updated)
+    Resample();
 }
 
 void ParticleFilter::Predict(const Vector2f& odom_loc,
@@ -277,8 +284,6 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
   Vector2f odom_delta = prev_odom_loc_.x() == -1000 ? Vector2f(0.0, 0.0) : odom_loc - prev_odom_loc_;
   float dist_delta = sqrt(pow(odom_delta.x(), 2) + pow(odom_delta.y(), 2));
   float a_delta = prev_odom_angle_ == -1000 ? 0.0 : odom_angle - prev_odom_angle_;
-  // cout << "r " << r << endl;
-  // cout << "a_delta " << a_delta << endl;
   for (struct Particle p : particles_) {
     // Get a new particle
     Vector2f new_loc = p.loc;
@@ -291,19 +296,19 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
     }
 
     // Add noises
-    // cout << "Stddev" << CONFIG_MOTION_X_K1 * r + CONFIG_MOTION_X_K2 * abs(a_delta) << endl;
     float new_x = rng_.Gaussian(new_loc.x(), CONFIG_MOTION_DIST_K1 * dist_delta + CONFIG_MOTION_DIST_K2 * abs(a_delta) );
     float new_y = rng_.Gaussian(new_loc.y(), CONFIG_MOTION_DIST_K1 * dist_delta + CONFIG_MOTION_DIST_K2 * abs(a_delta) );
     float new_a = rng_.Gaussian(new_angle,   CONFIG_MOTION_A_K1 * dist_delta + CONFIG_MOTION_A_K2 * abs(a_delta) );
-    // float new_x = rng_.Gaussian(new_loc.x(), CONFIG_MOTION_X_STD_DEV);
-    // float new_y = rng_.Gaussian(new_loc.y(), CONFIG_MOTION_Y_STD_DEV);
-    // float new_a = rng_.Gaussian(new_angle, CONFIG_MOTION_A_STD_DEV);
 
     struct Particle new_p = {Vector2f(new_x, new_y), new_a, p.weight};
     new_particles_.push_back(new_p);
   }
   particles_ = new_particles_;
 
+  // update dist travelled since last update
+  d_dist += dist_delta;
+  d_angle += a_delta;
+  
   // Update prev_odom
   prev_odom_loc_ = odom_loc;
   prev_odom_angle_ = odom_angle;
@@ -331,6 +336,9 @@ void ParticleFilter::Initialize(const string& map_file,
   // Update prev_odom
   prev_odom_angle_ = -1000;
   prev_odom_loc_ = Vector2f(-1000, -1000);
+  d_dist = 0.0;
+  d_angle = 0.0;
+  updated = false;
 }
 
 void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr, 
@@ -343,14 +351,19 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
 // TODO: Fix me.
   float x_sum = 0;
   float y_sum = 0;
-  float a_sum = 0;
+  // float a_sum = 0;
+  float cos_a_sum = 0.0;
+  float sin_a_sum = 0.0;
   for (struct Particle p : particles_) {
     x_sum += p.loc.x();
     y_sum += p.loc.y();
-    a_sum += p.angle;
+    // a_sum += p.angle;
+    cos_a_sum += cos(p.angle);
+    sin_a_sum += sin(p.angle);
   }
   loc = Vector2f(x_sum / particles_.size(), y_sum / particles_.size());
-  angle = a_sum / particles_.size();
+  // angle = a_sum / particles_.size();
+  angle = atan2(sin_a_sum / particles_.size(), cos_a_sum / particles_.size());
 }
 
 }  // namespace particle_filter
