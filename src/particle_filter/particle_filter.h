@@ -119,9 +119,7 @@ class ParticleFilter {
   bool debug = true;
 
   float d_dist;
-  const float MAX_D_DIST = 0.15;
   float d_angle;
-  const float MAX_D_ANGLE = M_PI / 18;
   bool updated;
 };
 }  // namespace slam

@@ -27,10 +27,13 @@ MOTION_A_STD_DEV = 0.01;
 MOTION_DIST_K1 = 1.1;
 MOTION_DIST_K2 = 0.5;
 MOTION_A_K1 = 0.5;
-MOTION_A_K2 = 1.0;
+MOTION_A_K2 = 1.5;
+
+MAX_D_DIST = 0.15
+MAX_D_ANGLE = 3.1415926 / 18
 
 -- 22-44 go-straight --> turn --> go-straight
--- 23-38 go-straight --> turn --> go-straight (hard)
+-- 23-38 go-straight --> turn --> go-straight (hardest)
 -- 25-18 go-straight (hard)
 -- 27-15 go-straight
 -- 09-24 go back and forth

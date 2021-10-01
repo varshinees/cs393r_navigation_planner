@@ -66,6 +66,8 @@ CONFIG_FLOAT(MOTION_DIST_K1, "MOTION_DIST_K1");
 CONFIG_FLOAT(MOTION_DIST_K2, "MOTION_DIST_K2");
 CONFIG_FLOAT(MOTION_A_K1, "MOTION_A_K1");
 CONFIG_FLOAT(MOTION_A_K2, "MOTION_A_K2");
+CONFIG_FLOAT(MAX_D_DIST, "MAX_D_DIST");
+CONFIG_FLOAT(MAX_D_ANGLE, "MAX_D_ANGLE");
 
 namespace particle_filter {
 
@@ -219,7 +221,7 @@ void ParticleFilter::Resample() {
   // TODO resample: 1 )low-variance resampling 2) resample/update less often
 
   float w_sum = 0.0;
-  for(Particle p : particles_) {
+  for(Particle &p : particles_) {
     w_sum += p.weight;
   }
   vector<Particle> new_particles;
@@ -233,6 +235,8 @@ void ParticleFilter::Resample() {
       rand_cp -= particles_[j].weight;
       j++;
     }
+    if(particles_[j-1].angle > M_PI || particles_[j-1].angle < -M_PI)
+      cout << "Resample: " << particles_[j-1].angle << endl;
     struct Particle p = { Vector2f(particles_[j-1].loc.x(), particles_[j-1].loc.y()), 
                           particles_[j-1].angle, 1.0 / particles_.size()};
     new_particles.push_back(p);
@@ -249,7 +253,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   // A new laser scan observation is available (in the laser frame)
   
   // This should only do anything when the robot has moved 0.15m or rotated 10 degrees
-  if (d_dist < MAX_D_DIST && d_angle < MAX_D_ANGLE)
+  if (d_dist < CONFIG_MAX_D_DIST && d_angle < CONFIG_MAX_D_ANGLE)
     return;
   
   d_dist = 0.0;
@@ -281,25 +285,44 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
   std::vector<Particle> new_particles_;
   // if (debug) printf("odom_loc.x: %.2f, odom_loc.y: %.2f, odom_angle: %.2f\n", 
   //     odom_loc.x(), odom_loc.y(), odom_angle);
-  Vector2f odom_delta = prev_odom_loc_.x() == -1000 ? Vector2f(0.0, 0.0) : odom_loc - prev_odom_loc_;
+  Vector2f odom_delta = abs(prev_odom_loc_.x() + 1000) < kEpsilon ? Vector2f(0.0, 0.0) : odom_loc - prev_odom_loc_;
   float dist_delta = sqrt(pow(odom_delta.x(), 2) + pow(odom_delta.y(), 2));
   float a_delta = prev_odom_angle_ == -1000 ? 0.0 : odom_angle - prev_odom_angle_;
+  a_delta = a_delta > M_PI ? a_delta - 2 * M_PI : (a_delta <= -M_PI ? a_delta + 2 * M_PI : a_delta);
+  if(dist_delta >= 1.0 || a_delta > 2*M_PI || a_delta < -2*M_PI) {
+    cout << "dist_delta: " << dist_delta;
+    cout << ", a_delta: " << a_delta << endl;
+  }
+  // cout << "dist_delta: " << dist_delta;
+  // cout << ", a_delta: " << a_delta << endl;
   for (struct Particle p : particles_) {
     // Get a new particle
     Vector2f new_loc = p.loc;
+    if(p.angle > M_PI || p.angle < -M_PI)
+      cout << "p.angle: " << p.angle << endl;
     float new_angle = p.angle;
     if(prev_odom_angle_ != -1000) {
       // TODO: Approximate the angle between map and odom frame?
       Rotation2Df r(p.angle - prev_odom_angle_);
       new_loc = p.loc + r * odom_delta;
       new_angle = p.angle + a_delta;
+      if (new_angle > M_PI)
+        new_angle -= 2 * M_PI;
+      if (new_angle <= -M_PI)
+        new_angle += 2 * M_PI;
     }
-
+    if(new_angle > M_PI || new_angle < -M_PI)
+      cout << "new_angle: " << new_angle << endl;
     // Add noises
     float new_x = rng_.Gaussian(new_loc.x(), CONFIG_MOTION_DIST_K1 * dist_delta + CONFIG_MOTION_DIST_K2 * abs(a_delta) );
     float new_y = rng_.Gaussian(new_loc.y(), CONFIG_MOTION_DIST_K1 * dist_delta + CONFIG_MOTION_DIST_K2 * abs(a_delta) );
+    float std = CONFIG_MOTION_A_K1 * dist_delta + CONFIG_MOTION_A_K2 * abs(a_delta);
+    if(std > M_PI || std < -M_PI)
+      cout << "std: " << std << endl;
     float new_a = rng_.Gaussian(new_angle,   CONFIG_MOTION_A_K1 * dist_delta + CONFIG_MOTION_A_K2 * abs(a_delta) );
-
+    new_a = new_a > M_PI ? new_a - 2 * M_PI : (new_a < -M_PI ? new_a + 2 * M_PI : new_a);
+    if(new_a > M_PI || new_a < -M_PI)
+      cout << "after change new_a: " << new_a << endl;
     struct Particle new_p = {Vector2f(new_x, new_y), new_a, p.weight};
     new_particles_.push_back(new_p);
   }
@@ -327,6 +350,7 @@ void ParticleFilter::Initialize(const string& map_file,
     float x = rng_.Gaussian(loc.x(), CONFIG_MOTION_X_STD_DEV);
     float y = rng_.Gaussian(loc.y(), CONFIG_MOTION_Y_STD_DEV);
     float a = rng_.Gaussian(angle, CONFIG_MOTION_A_STD_DEV);
+    a = a > M_PI ? a - 2 * M_PI : (a <= -M_PI ? a + 2 * M_PI : a);
 
     struct Particle p = {Vector2f(x, y), a, 1.0 / FLAGS_num_particles};
     particles_.push_back(p);
