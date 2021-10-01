@@ -112,7 +112,7 @@ class ParticleFilter {
   const Eigen::Vector2f kLaserLoc = Eigen::Vector2f(0.2, 0);
 
   // constants
-  const float HORIZON = 10.0;
+  const float HORIZON = 36.0;
 
   const float kEpsilon = 1e-4;
 

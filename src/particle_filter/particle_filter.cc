@@ -55,10 +55,17 @@ using amrl_msgs::VisualizationMsg;
 DEFINE_uint32(num_particles, 50, "Number of particles");
 
 CONFIG_FLOAT(GAMMA, "GAMMA");
+CONFIG_FLOAT(SENSOR_STD_DEV, "SENSOR_STD_DEV");
+CONFIG_FLOAT(D_SHORT, "D_SHORT");
+CONFIG_FLOAT(D_LONG, "D_LONG");
+CONFIG_FLOAT(P_OUTSIDE_RANGE, "P_OUTSIDE_RANGE");
 CONFIG_FLOAT(MOTION_X_STD_DEV, "MOTION_X_STD_DEV");
 CONFIG_FLOAT(MOTION_Y_STD_DEV, "MOTION_Y_STD_DEV");
 CONFIG_FLOAT(MOTION_A_STD_DEV, "MOTION_A_STD_DEV");
-CONFIG_FLOAT(SENSOR_STD_DEV, "SENSOR_STD_DEV");
+CONFIG_FLOAT(MOTION_DIST_K1, "MOTION_DIST_K1");
+CONFIG_FLOAT(MOTION_DIST_K2, "MOTION_DIST_K2");
+CONFIG_FLOAT(MOTION_A_K1, "MOTION_A_K1");
+CONFIG_FLOAT(MOTION_A_K2, "MOTION_A_K2");
 
 namespace particle_filter {
 
@@ -160,10 +167,18 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
 }
 
 // returns the log likelihood of x in a Gaussian distribution
-float calculateLogGaussian(float mean, float x, float stddev) {
+float calculateLogGaussian(float mean, float x, float stddev, float range_min, float range_max) {
   // TODO: update to more robust model
   // remember we don't want to use 0 outside the window
-  return - 0.5 * pow(x - mean, 2) / pow(stddev, 2);
+  if (x < range_min || x > range_max) {
+    return CONFIG_P_OUTSIDE_RANGE;
+  } else if (x < mean - CONFIG_D_SHORT) {
+    return - pow(CONFIG_D_SHORT, 2) / pow(stddev, 2);
+  } else if (x > mean + CONFIG_D_LONG) {
+    return - pow(CONFIG_D_LONG, 2) / pow(stddev, 2);
+  } else {
+    return - pow(x - mean, 2) / pow(stddev, 2);
+  }
 }
 
 void ParticleFilter::Update(const vector<float>& ranges,
@@ -183,8 +198,8 @@ void ParticleFilter::Update(const vector<float>& ranges,
   for (size_t i = 0; i < ranges.size() / downsample_rate; ++i) {
     // Get the actual range
     float actual_r = ranges[i * downsample_rate];
-    // skip when laser reading is out of range
-    if (actual_r < range_min || actual_r > range_max)
+    // Ignore invalid readings
+    if(actual_r < range_min || actual_r > range_max)
       continue;
     
     // Get the predicted range
@@ -194,7 +209,7 @@ void ParticleFilter::Update(const vector<float>& ranges,
     float y = predicted_cloud[i].y() - mLaserLoc.y();
     float predicted_r = sqrt(pow(x, 2) + pow(y, 2));
 
-    w += calculateLogGaussian(actual_r, predicted_r, CONFIG_SENSOR_STD_DEV);
+    w += calculateLogGaussian(actual_r, predicted_r, CONFIG_SENSOR_STD_DEV, range_min, range_max);
   }
   p_ptr->weight = w * CONFIG_GAMMA;
 }
@@ -208,19 +223,20 @@ void ParticleFilter::Resample() {
     w_sum += p.weight;
   }
   vector<Particle> new_particles;
+  float rand = rng_.UniformRandom(0, w_sum);
+  float step = 1.0 / FLAGS_num_particles;
   for (size_t i = 0; i < particles_.size(); ++i) {
-    float rand = rng_.UniformRandom(0, w_sum);
+    rand = rand >= 1.0 ? rand - 1.0 : rand;
     size_t j = 0;
-    while (rand > 0.0) {
-      rand -= particles_[j].weight;
-      j++;
-    }
-    if(rand == 0.0) {
+    float rand_cp = rand;
+    while (rand_cp >= 0.0) {
+      rand_cp -= particles_[j].weight;
       j++;
     }
     struct Particle p = { Vector2f(particles_[j-1].loc.x(), particles_[j-1].loc.y()), 
                           particles_[j-1].angle, 1.0 / particles_.size()};
     new_particles.push_back(p);
+    rand += step;
   }
   particles_ = new_particles;
 }
@@ -241,9 +257,9 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   // Normalizes the weights
   for (Particle &p : particles_) {
     p.weight = pow(M_E, p.weight - w_max);
-    cout << "p.weight " << p.weight << endl;
+    // cout << "p.weight " << p.weight << endl;
   }
-  cout << endl;
+  // cout << endl;
 
   Resample();
 }
@@ -258,6 +274,11 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
   std::vector<Particle> new_particles_;
   // if (debug) printf("odom_loc.x: %.2f, odom_loc.y: %.2f, odom_angle: %.2f\n", 
   //     odom_loc.x(), odom_loc.y(), odom_angle);
+  Vector2f odom_delta = prev_odom_loc_.x() == -1000 ? Vector2f(0.0, 0.0) : odom_loc - prev_odom_loc_;
+  float dist_delta = sqrt(pow(odom_delta.x(), 2) + pow(odom_delta.y(), 2));
+  float a_delta = prev_odom_angle_ == -1000 ? 0.0 : odom_angle - prev_odom_angle_;
+  // cout << "r " << r << endl;
+  // cout << "a_delta " << a_delta << endl;
   for (struct Particle p : particles_) {
     // Get a new particle
     Vector2f new_loc = p.loc;
@@ -265,14 +286,18 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
     if(prev_odom_angle_ != -1000) {
       // TODO: Approximate the angle between map and odom frame?
       Rotation2Df r(p.angle - prev_odom_angle_);
-      new_loc = p.loc + r * (odom_loc - prev_odom_loc_);
-      new_angle = p.angle + odom_angle - prev_odom_angle_;
+      new_loc = p.loc + r * odom_delta;
+      new_angle = p.angle + a_delta;
     }
 
     // Add noises
-    float new_x = rng_.Gaussian(new_loc.x(), CONFIG_MOTION_X_STD_DEV);
-    float new_y = rng_.Gaussian(new_loc.y(), CONFIG_MOTION_Y_STD_DEV);
-    float new_a = rng_.Gaussian(new_angle, CONFIG_MOTION_A_STD_DEV);
+    // cout << "Stddev" << CONFIG_MOTION_X_K1 * r + CONFIG_MOTION_X_K2 * abs(a_delta) << endl;
+    float new_x = rng_.Gaussian(new_loc.x(), CONFIG_MOTION_DIST_K1 * dist_delta + CONFIG_MOTION_DIST_K2 * abs(a_delta) );
+    float new_y = rng_.Gaussian(new_loc.y(), CONFIG_MOTION_DIST_K1 * dist_delta + CONFIG_MOTION_DIST_K2 * abs(a_delta) );
+    float new_a = rng_.Gaussian(new_angle,   CONFIG_MOTION_A_K1 * dist_delta + CONFIG_MOTION_A_K2 * abs(a_delta) );
+    // float new_x = rng_.Gaussian(new_loc.x(), CONFIG_MOTION_X_STD_DEV);
+    // float new_y = rng_.Gaussian(new_loc.y(), CONFIG_MOTION_Y_STD_DEV);
+    // float new_a = rng_.Gaussian(new_angle, CONFIG_MOTION_A_STD_DEV);
 
     struct Particle new_p = {Vector2f(new_x, new_y), new_a, p.weight};
     new_particles_.push_back(new_p);
@@ -291,16 +316,12 @@ void ParticleFilter::Initialize(const string& map_file,
   // was received from the log. Initialize the particles accordingly, e.g. with
   // some distribution around the provided location and angle.
   map_.Load(map_file);
-  // TODO: sample a few particles from a gaussian around loc and angle
-  const float DELTA_X = 0.05;
-  const float DELTA_Y = 0.05;
-  const float DELTA_A = 0.05;
-  // Assume all particles are at the exact location provided
+  // Sample particles from a gaussian around loc and angle
   particles_.clear();
   for (size_t i = 0; i < FLAGS_num_particles; i++) {
-    float x = rng_.Gaussian(loc.x(), DELTA_X);
-    float y = rng_.Gaussian(loc.y(), DELTA_Y);
-    float a = rng_.Gaussian(angle, DELTA_A);
+    float x = rng_.Gaussian(loc.x(), CONFIG_MOTION_X_STD_DEV);
+    float y = rng_.Gaussian(loc.y(), CONFIG_MOTION_Y_STD_DEV);
+    float a = rng_.Gaussian(angle, CONFIG_MOTION_A_STD_DEV);
 
     struct Particle p = {Vector2f(x, y), a, 1.0 / FLAGS_num_particles};
     particles_.push_back(p);
