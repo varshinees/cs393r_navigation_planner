@@ -55,13 +55,17 @@ using amrl_msgs::VisualizationMsg;
 DEFINE_uint32(num_particles, 50, "Number of particles");
 
 CONFIG_FLOAT(GAMMA, "GAMMA");
+CONFIG_FLOAT(SENSOR_STD_DEV, "SENSOR_STD_DEV");
+CONFIG_FLOAT(D_SHORT, "D_SHORT");
+CONFIG_FLOAT(D_LONG, "D_LONG");
+CONFIG_FLOAT(P_OUTSIDE_RANGE, "P_OUTSIDE_RANGE");
 CONFIG_FLOAT(MOTION_X_STD_DEV, "MOTION_X_STD_DEV");
 CONFIG_FLOAT(MOTION_Y_STD_DEV, "MOTION_Y_STD_DEV");
 CONFIG_FLOAT(MOTION_A_STD_DEV, "MOTION_A_STD_DEV");
-CONFIG_FLOAT(SENSOR_STD_DEV, "SENSOR_STD_DEV");
-CONFIG_FLOAT(D_SHORT, "D_SHORT");
-CONFIG_FLOAT(P_OUTSIDE_RANGE, "P_OUTSIDE_RANGE");
-CONFIG_FLOAT(D_LONG, "D_LONG");
+CONFIG_FLOAT(MOTION_DIST_K1, "MOTION_DIST_K1");
+CONFIG_FLOAT(MOTION_DIST_K2, "MOTION_DIST_K2");
+CONFIG_FLOAT(MOTION_A_K1, "MOTION_A_K1");
+CONFIG_FLOAT(MOTION_A_K2, "MOTION_A_K2");
 
 namespace particle_filter {
 
@@ -253,9 +257,9 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   // Normalizes the weights
   for (Particle &p : particles_) {
     p.weight = pow(M_E, p.weight - w_max);
-    cout << "p.weight " << p.weight << endl;
+    // cout << "p.weight " << p.weight << endl;
   }
-  cout << endl;
+  // cout << endl;
 
   Resample();
 }
@@ -270,6 +274,11 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
   std::vector<Particle> new_particles_;
   // if (debug) printf("odom_loc.x: %.2f, odom_loc.y: %.2f, odom_angle: %.2f\n", 
   //     odom_loc.x(), odom_loc.y(), odom_angle);
+  Vector2f odom_delta = prev_odom_loc_.x() == -1000 ? Vector2f(0.0, 0.0) : odom_loc - prev_odom_loc_;
+  float dist_delta = sqrt(pow(odom_delta.x(), 2) + pow(odom_delta.y(), 2));
+  float a_delta = prev_odom_angle_ == -1000 ? 0.0 : odom_angle - prev_odom_angle_;
+  // cout << "r " << r << endl;
+  // cout << "a_delta " << a_delta << endl;
   for (struct Particle p : particles_) {
     // Get a new particle
     Vector2f new_loc = p.loc;
@@ -277,14 +286,18 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
     if(prev_odom_angle_ != -1000) {
       // TODO: Approximate the angle between map and odom frame?
       Rotation2Df r(p.angle - prev_odom_angle_);
-      new_loc = p.loc + r * (odom_loc - prev_odom_loc_);
-      new_angle = p.angle + odom_angle - prev_odom_angle_;
+      new_loc = p.loc + r * odom_delta;
+      new_angle = p.angle + a_delta;
     }
 
     // Add noises
-    float new_x = rng_.Gaussian(new_loc.x(), CONFIG_MOTION_X_STD_DEV);
-    float new_y = rng_.Gaussian(new_loc.y(), CONFIG_MOTION_Y_STD_DEV);
-    float new_a = rng_.Gaussian(new_angle, CONFIG_MOTION_A_STD_DEV);
+    // cout << "Stddev" << CONFIG_MOTION_X_K1 * r + CONFIG_MOTION_X_K2 * abs(a_delta) << endl;
+    float new_x = rng_.Gaussian(new_loc.x(), CONFIG_MOTION_DIST_K1 * dist_delta + CONFIG_MOTION_DIST_K2 * abs(a_delta) );
+    float new_y = rng_.Gaussian(new_loc.y(), CONFIG_MOTION_DIST_K1 * dist_delta + CONFIG_MOTION_DIST_K2 * abs(a_delta) );
+    float new_a = rng_.Gaussian(new_angle,   CONFIG_MOTION_A_K1 * dist_delta + CONFIG_MOTION_A_K2 * abs(a_delta) );
+    // float new_x = rng_.Gaussian(new_loc.x(), CONFIG_MOTION_X_STD_DEV);
+    // float new_y = rng_.Gaussian(new_loc.y(), CONFIG_MOTION_Y_STD_DEV);
+    // float new_a = rng_.Gaussian(new_angle, CONFIG_MOTION_A_STD_DEV);
 
     struct Particle new_p = {Vector2f(new_x, new_y), new_a, p.weight};
     new_particles_.push_back(new_p);

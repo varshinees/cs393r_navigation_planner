@@ -15,10 +15,19 @@ init_r = 0
 
 -- log data
 GAMMA = 0.02;
-MOTION_X_STD_DEV = 0.1;
-MOTION_Y_STD_DEV = 0.05;
-MOTION_A_STD_DEV = 0.1;
 SENSOR_STD_DEV   = 0.5;
 D_SHORT = SENSOR_STD_DEV * 1.5;
 D_LONG = SENSOR_STD_DEV * 2;
-P_OUTSIDE_RANGE = 0.0
+P_OUTSIDE_RANGE = 0.0;
+
+MOTION_X_STD_DEV = 0.01;
+MOTION_Y_STD_DEV = 0.01;
+MOTION_A_STD_DEV = 0.01;
+
+MOTION_DIST_K1 = 0.7;
+MOTION_DIST_K2 = 0.5;
+MOTION_A_K1 = 1.5;
+MOTION_A_K2 = 1.5;
+
+-- 22-44 go-straight --> turn --> go-straight
+-- 25-18 go-straight
