@@ -235,8 +235,6 @@ void ParticleFilter::Resample() {
       rand_cp -= particles_[j].weight;
       j++;
     }
-    if(particles_[j-1].angle > M_PI || particles_[j-1].angle < -M_PI)
-      cout << "Resample: " << particles_[j-1].angle << endl;
     struct Particle p = { Vector2f(particles_[j-1].loc.x(), particles_[j-1].loc.y()), 
                           particles_[j-1].angle, 1.0 / particles_.size()};
     new_particles.push_back(p);
@@ -289,17 +287,9 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
   float dist_delta = sqrt(pow(odom_delta.x(), 2) + pow(odom_delta.y(), 2));
   float a_delta = prev_odom_angle_ == -1000 ? 0.0 : odom_angle - prev_odom_angle_;
   a_delta = a_delta > M_PI ? a_delta - 2 * M_PI : (a_delta <= -M_PI ? a_delta + 2 * M_PI : a_delta);
-  if(dist_delta >= 1.0 || a_delta > 2*M_PI || a_delta < -2*M_PI) {
-    cout << "dist_delta: " << dist_delta;
-    cout << ", a_delta: " << a_delta << endl;
-  }
-  // cout << "dist_delta: " << dist_delta;
-  // cout << ", a_delta: " << a_delta << endl;
   for (struct Particle p : particles_) {
     // Get a new particle
     Vector2f new_loc = p.loc;
-    if(p.angle > M_PI || p.angle < -M_PI)
-      cout << "p.angle: " << p.angle << endl;
     float new_angle = p.angle;
     if(prev_odom_angle_ != -1000) {
       // TODO: Approximate the angle between map and odom frame?
@@ -311,18 +301,19 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
       if (new_angle <= -M_PI)
         new_angle += 2 * M_PI;
     }
-    if(new_angle > M_PI || new_angle < -M_PI)
-      cout << "new_angle: " << new_angle << endl;
+
     // Add noises
+    // dist_delta < 1.0, -M_PI < a_delta <= M_PI
     float new_x = rng_.Gaussian(new_loc.x(), CONFIG_MOTION_DIST_K1 * dist_delta + CONFIG_MOTION_DIST_K2 * abs(a_delta) );
     float new_y = rng_.Gaussian(new_loc.y(), CONFIG_MOTION_DIST_K1 * dist_delta + CONFIG_MOTION_DIST_K2 * abs(a_delta) );
+    
     float std = CONFIG_MOTION_A_K1 * dist_delta + CONFIG_MOTION_A_K2 * abs(a_delta);
-    if(std > M_PI || std < -M_PI)
+    if(std > M_PI/2 || std < -M_PI/2)
       cout << "std: " << std << endl;
+    
     float new_a = rng_.Gaussian(new_angle,   CONFIG_MOTION_A_K1 * dist_delta + CONFIG_MOTION_A_K2 * abs(a_delta) );
     new_a = new_a > M_PI ? new_a - 2 * M_PI : (new_a < -M_PI ? new_a + 2 * M_PI : new_a);
-    if(new_a > M_PI || new_a < -M_PI)
-      cout << "after change new_a: " << new_a << endl;
+
     struct Particle new_p = {Vector2f(new_x, new_y), new_a, p.weight};
     new_particles_.push_back(new_p);
   }
