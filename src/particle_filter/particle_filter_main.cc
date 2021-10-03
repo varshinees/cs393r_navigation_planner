@@ -64,7 +64,7 @@ using visualization::DrawArc;
 using visualization::DrawPoint;
 using visualization::DrawLine;
 using visualization::DrawParticle;
-// using visualization::DrawCross;
+using visualization::DrawCross;
 
 // Create command line arguements
 DEFINE_string(laser_topic, "/scan", "Name of ROS topic for LIDAR data");
@@ -103,8 +103,18 @@ void InitializeMsgs() {
 void PublishParticles() {
   vector<particle_filter::Particle> particles;
   particle_filter_.GetParticles(&particles);
+  
   for (const particle_filter::Particle& p : particles) {
     DrawParticle(p.loc, p.angle, vis_msg_);
+    if (p.weight > 0.8) {
+      DrawCross(p.loc, 0.01, 0xff0000, vis_msg_);  // red
+    } else if (p.weight > 0.5) {
+      DrawCross(p.loc, 0.01, 0x00ff00, vis_msg_);  // green
+    } else if (p.weight > 0.1) {
+      DrawCross(p.loc, 0.01, 0x0000ff, vis_msg_);  // blue
+    } else {
+      DrawCross(p.loc, 0.01, 0x000000, vis_msg_);  // black
+    }
   }
 }
 

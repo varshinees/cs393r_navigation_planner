@@ -226,9 +226,9 @@ void ParticleFilter::Resample() {
   }
   vector<Particle> new_particles;
   float rand = rng_.UniformRandom(0, w_sum);
-  float step = 1.0 / FLAGS_num_particles;
+  float step = w_sum / FLAGS_num_particles;
   for (size_t i = 0; i < particles_.size(); ++i) {
-    rand = rand >= 1.0 ? rand - 1.0 : rand;
+    rand = rand >= w_sum ? rand - w_sum : rand;
     size_t j = 0;
     float rand_cp = rand;
     while (rand_cp >= 0.0) {
@@ -307,11 +307,12 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
     float new_x = rng_.Gaussian(new_loc.x(), CONFIG_MOTION_DIST_K1 * dist_delta + CONFIG_MOTION_DIST_K2 * abs(a_delta) );
     float new_y = rng_.Gaussian(new_loc.y(), CONFIG_MOTION_DIST_K1 * dist_delta + CONFIG_MOTION_DIST_K2 * abs(a_delta) );
     
-    float std = CONFIG_MOTION_A_K1 * dist_delta + CONFIG_MOTION_A_K2 * abs(a_delta);
-    if(std > M_PI/2 || std < -M_PI/2)
-      cout << "std: " << std << endl;
+    float std_a = CONFIG_MOTION_A_K1 * dist_delta + CONFIG_MOTION_A_K2 * abs(a_delta);
+    std_a = std_a > M_PI_2 ? M_PI_2 : std_a;
+    // if(std > M_PI/2 || std < -M_PI/2)
+    //   cout << "std: " << std << endl;
     
-    float new_a = rng_.Gaussian(new_angle,   CONFIG_MOTION_A_K1 * dist_delta + CONFIG_MOTION_A_K2 * abs(a_delta) );
+    float new_a = rng_.Gaussian(new_angle, std_a);
     new_a = new_a > M_PI ? new_a - 2 * M_PI : (new_a < -M_PI ? new_a + 2 * M_PI : new_a);
 
     struct Particle new_p = {Vector2f(new_x, new_y), new_a, p.weight};
@@ -363,21 +364,18 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
   // Compute the best estimate of the robot's location based on the current set
   // of particles. The computed values must be set to the `loc` and `angle`
   // variables to return them. Modify the following assignments:
-// TODO: Fix me.
+  // TODO: Fix me.
   float x_sum = 0;
   float y_sum = 0;
-  // float a_sum = 0;
   float cos_a_sum = 0.0;
   float sin_a_sum = 0.0;
   for (struct Particle p : particles_) {
     x_sum += p.loc.x();
     y_sum += p.loc.y();
-    // a_sum += p.angle;
     cos_a_sum += cos(p.angle);
     sin_a_sum += sin(p.angle);
   }
   loc = Vector2f(x_sum / particles_.size(), y_sum / particles_.size());
-  // angle = a_sum / particles_.size();
   angle = atan2(sin_a_sum / particles_.size(), cos_a_sum / particles_.size());
 }
 
