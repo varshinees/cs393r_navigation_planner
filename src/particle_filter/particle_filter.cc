@@ -170,7 +170,6 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
 
 // returns the log likelihood of x in a Gaussian distribution
 float calculateLogGaussian(float mean, float x, float stddev, float range_min, float range_max) {
-  // TODO: update to more robust model
   // remember we don't want to use 0 outside the window
   if (x < range_min || x > range_max) {
     return CONFIG_P_OUTSIDE_RANGE;
@@ -218,8 +217,6 @@ void ParticleFilter::Update(const vector<float>& ranges,
 
 void ParticleFilter::Resample() {
   // Resample the particles, proportional to their weights
-  // TODO resample: 1 )low-variance resampling 2) resample/update less often
-
   float w_sum = 0.0;
   for(Particle &p : particles_) {
     w_sum += p.weight;
@@ -281,8 +278,6 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
   // forward based on odometry.
 
   std::vector<Particle> new_particles_;
-  // if (debug) printf("odom_loc.x: %.2f, odom_loc.y: %.2f, odom_angle: %.2f\n", 
-  //     odom_loc.x(), odom_loc.y(), odom_angle);
   Vector2f odom_delta = abs(prev_odom_loc_.x() + 1000) < kEpsilon ? Vector2f(0.0, 0.0) : odom_loc - prev_odom_loc_;
   float dist_delta = sqrt(pow(odom_delta.x(), 2) + pow(odom_delta.y(), 2));
   float a_delta = prev_odom_angle_ == -1000 ? 0.0 : odom_angle - prev_odom_angle_;
@@ -292,7 +287,6 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
     Vector2f new_loc = p.loc;
     float new_angle = p.angle;
     if(prev_odom_angle_ != -1000) {
-      // TODO: Approximate the angle between map and odom frame?
       Rotation2Df r(p.angle - prev_odom_angle_);
       new_loc = p.loc + r * odom_delta;
       new_angle = p.angle + a_delta;
@@ -309,8 +303,6 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
     
     float std_a = CONFIG_MOTION_A_K1 * dist_delta + CONFIG_MOTION_A_K2 * abs(a_delta);
     std_a = std_a > M_PI_2 ? M_PI_2 : std_a;
-    // if(std > M_PI/2 || std < -M_PI/2)
-    //   cout << "std: " << std << endl;
     
     float new_a = rng_.Gaussian(new_angle, std_a);
     new_a = new_a > M_PI ? new_a - 2 * M_PI : (new_a < -M_PI ? new_a + 2 * M_PI : new_a);
@@ -348,7 +340,6 @@ void ParticleFilter::Initialize(const string& map_file,
     particles_.push_back(p);
   }
 
-  // TODO: check this
   // Update prev_odom
   prev_odom_angle_ = -1000;
   prev_odom_loc_ = Vector2f(-1000, -1000);
@@ -364,7 +355,6 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
   // Compute the best estimate of the robot's location based on the current set
   // of particles. The computed values must be set to the `loc` and `angle`
   // variables to return them. Modify the following assignments:
-  // TODO: Fix me.
   float x_sum = 0;
   float y_sum = 0;
   float cos_a_sum = 0.0;
@@ -380,10 +370,3 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
 }
 
 }  // namespace particle_filter
-
-/*
-1. Is it okay that the particles are slightly behnd the car?
-2. What's the problem here-- could it be a bug in our code or just an issue of tuning?
-3. flashes --> getLocation is called?
-4. weight normalization: where do we do exponential and where should we keep log
-*/

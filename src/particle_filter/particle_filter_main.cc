@@ -106,15 +106,6 @@ void PublishParticles() {
   
   for (const particle_filter::Particle& p : particles) {
     DrawParticle(p.loc, p.angle, vis_msg_);
-    if (p.weight > 0.8) {
-      DrawCross(p.loc, 0.01, 0xff0000, vis_msg_);  // red
-    } else if (p.weight > 0.5) {
-      DrawCross(p.loc, 0.01, 0x00ff00, vis_msg_);  // green
-    } else if (p.weight > 0.1) {
-      DrawCross(p.loc, 0.01, 0x0000ff, vis_msg_);  // blue
-    } else {
-      DrawCross(p.loc, 0.01, 0x000000, vis_msg_);  // black
-    }
   }
 }
 
