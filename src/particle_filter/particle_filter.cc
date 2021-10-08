@@ -300,7 +300,8 @@ void ParticleFilter::Predict(const Vector2f& odom_loc,
     // dist_delta < 1.0, -M_PI < a_delta <= M_PI
     float new_x = rng_.Gaussian(new_loc.x(), CONFIG_MOTION_DIST_K1 * dist_delta + CONFIG_MOTION_DIST_K2 * abs(a_delta) );
     float new_y = rng_.Gaussian(new_loc.y(), CONFIG_MOTION_DIST_K1 * dist_delta + CONFIG_MOTION_DIST_K2 * abs(a_delta) );
-    
+    // float p_motion = - pow(new_x - new_loc.x(), 2) / pow(CONFIG_MOTION_DIST_K1 * dist_delta + CONFIG_MOTION_DIST_K2 * abs(a_delta), 2)
+    //     -  pow(new_x - new_loc.x(), 2) / pow(CONFIG_MOTION_DIST_K1 * dist_delta + CONFIG_MOTION_DIST_K2 * abs(a_delta), 2)
     float std_a = CONFIG_MOTION_A_K1 * dist_delta + CONFIG_MOTION_A_K2 * abs(a_delta);
     std_a = std_a > M_PI_2 ? M_PI_2 : std_a;
     
