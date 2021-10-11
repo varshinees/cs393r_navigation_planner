@@ -88,9 +88,9 @@ void ParticleFilter::GetParticles(vector<Particle>* particles) const {
  * loc_pa and angle_pa is the position of the object p in frame A.
  * Calculates the position of p in frame B.
  */
-void ParticleFilter::TransformAToB(const Vector2f& loc_ab, float angle_ab,
-                               const Vector2f& loc_pa, float angle_pa,
-                               Vector2f* loc_ptr, float* angle_ptr) {
+void TransformAToB(const Vector2f& loc_ab, float angle_ab,
+                   const Vector2f& loc_pa, float angle_pa,
+                   Vector2f* loc_ptr, float* angle_ptr) {
   float& new_angle = *angle_ptr;
   Vector2f& new_loc = *loc_ptr;
   

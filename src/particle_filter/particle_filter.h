@@ -91,11 +91,6 @@ class ParticleFilter {
                               std::vector<Eigen::Vector2f>* scan);
 
  private:
-
-  void TransformAToB(const Eigen::Vector2f& loc_ab, float angle_ab,
-                     const Eigen::Vector2f& loc_pa, float angle_pa,
-                     Eigen::Vector2f* loc_ptr, float* angle_ptr);
-
   // List of particles being tracked.
   std::vector<Particle> particles_;
 
@@ -113,10 +108,7 @@ class ParticleFilter {
 
   // constants
   const float HORIZON = 36.0;
-
   const float kEpsilon = 1e-4;
-
-  bool debug = true;
 
   float d_dist;
   float d_angle;
