@@ -49,6 +49,7 @@ using std::vector;
 
 using namespace math_util;
 using namespace ros_helpers;
+using namespace planner;
 
 namespace
 {
@@ -84,6 +85,7 @@ namespace navigation
     InitRosHeader("base_link", &drive_msg_.header);
     acceleration_ = 0.0;
     planner = Planner(); // TODO
+    planner.SetMap(map_file);
   }
 
   void Navigation::SetNavGoal(const Vector2f &loc, float angle)
