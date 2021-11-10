@@ -34,6 +34,8 @@
 #include "visualization/visualization.h"
 #include <cmath>
 
+#include "planner.h"
+
 using amrl_msgs::AckermannCurvatureDriveMsg;
 using amrl_msgs::VisualizationMsg;
 using Eigen::Vector2f;
@@ -81,12 +83,14 @@ namespace navigation
         "map", "navigation_global");
     InitRosHeader("base_link", &drive_msg_.header);
     acceleration_ = 0.0;
+    planner = Planner(); // TODO
   }
 
   void Navigation::SetNavGoal(const Vector2f &loc, float angle)
   {
     nav_goal_loc_ = loc;
     nav_goal_angle_ = angle;
+    planner.SetGlobalGoal(loc, angle);
   }
 
   void Navigation::UpdateLocation(const Eigen::Vector2f &loc, float angle)

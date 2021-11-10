@@ -22,9 +22,12 @@
 #include <vector>
 
 #include "eigen3/Eigen/Dense"
+#include "planner.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
+
+using namespace planner;
 
 namespace ros {
   class NodeHandle;
@@ -120,6 +123,8 @@ class Navigation {
   Eigen::Vector2f nav_goal_loc_;
   // Navigation goal angle.
   float nav_goal_angle_;
+  // global planner object
+  Planner planner;
 
   // Current acceleration (acceleration used in previous control cycle to get current velocity)
   float acceleration_;
