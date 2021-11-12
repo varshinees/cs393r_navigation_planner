@@ -29,37 +29,39 @@ using std::deque;
 using std::pair;
 using std::make_pair;
 
-template<class Value, class Priority>
+template<typename Value, typename Priority>
 class SimpleQueue {
  private:
   public:
   // Insert a new value, with the specified priority. If the value
   // already exists, its priority is updated.
-  void Push(const Value& v, const Priority& p) {
+  bool Push(const Value& v, const Priority& p) {
     for (auto& x : values_) {
       // If the value already exists, update its priority, re-sort the priority
       // queue, and return.
       if (x.first == v) {
+        if (x.second < p) return false;
         x.second = p;
         Sort();
-        return;
+        return true;
       }
     }
     // Find where this value should go, and insert it there.
     for (size_t i = 0; i < values_.size(); ++i) {
       if (values_[i].second > p) {
         values_.insert(values_.begin() + i, make_pair(v, p));
-        return;
+        return true;
       }
     }
     values_.insert(values_.end(), make_pair(v, p));
+    return true;
   }
 
   // Sorts the priorities.
   void Sort() {
     static const auto comparator = 
         [](const pair<Value, Priority>& v1, const pair<Value, Priority>& v2) {
-      return (v1.second < v2.second);
+      return (v1.second > v2.second);
     };
     sort(values_.begin(), values_.end(), comparator);
   }

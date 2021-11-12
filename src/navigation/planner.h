@@ -3,9 +3,11 @@
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
 #include "vector_map/vector_map.h"
+#include "amrl_msgs/VisualizationMsg.h"
 
 using namespace std;
 using namespace Eigen;
+using amrl_msgs::VisualizationMsg;
 
 #ifndef PLANNER_H_
 #define PLANNER_H_
@@ -17,8 +19,10 @@ const float GRID_SIZE = 0.5;
 struct SearchState {
   Vector2f curr_loc;
   float cost;
-  SearchState* parent;
-} SearchState;
+
+  bool operator==(const SearchState &other) const
+  { return curr_loc.x() == other.curr_loc.x() && curr_loc.y() == other.curr_loc.y(); }
+};
 
 class Planner {
 
@@ -37,6 +41,7 @@ public:
   void SetGlobalGoal(const Vector2f &loc, float angle);
   void GetGlobalPlan(const Vector2f& odom_loc, float odom_angle);
 	const vector<Vector2f>& GetPath();
+  void VisualizePath(VisualizationMsg& global_viz_msg);
 
 private:
   
@@ -47,11 +52,12 @@ private:
   vector<Vector2f> lattices_;
 
   vector_map::VectorMap map_;
-  vector<Vector2f> path;
+  vector<Vector2f> path_;
   // constexpr static float GRID_SIZE = 0.5;
 
   // get the heuristic score of a location
-  float GetScore_(const Vector2f& loc, const Vector2f& prev_loc, float prev_cost);
+  float GetCost_(const Vector2f& loc, const Vector2f& prev_loc, float prev_cost);
+  float GetHeuristic_(const Vector2f& loc);
   void Neighbors_(const Vector2f& loc, vector<Vector2f>* neighbors);
   bool AtGoal(const Vector2f& robot_mloc);
 };

@@ -90,9 +90,11 @@ namespace navigation
 
   void Navigation::SetNavGoal(const Vector2f &loc, float angle)
   {
+    cout << "Set Nav Goal" << endl;
     nav_goal_loc_ = loc;
     nav_goal_angle_ = angle;
     planner.SetGlobalGoal(loc, angle);
+    planner.GetGlobalPlan(Vector2f(14,16), 0);
   }
 
   void Navigation::UpdateLocation(const Eigen::Vector2f &loc, float angle)
@@ -401,12 +403,15 @@ namespace navigation
     visualization::ClearVisualizationMsg(global_viz_msg_);
 
     drawVisualizations();
+    planner.VisualizePath(global_viz_msg_);
 
     // If odometry has not been initialized, we can't do anything.
     if (!odom_initialized_)
       return;
 
-    makeControlDecision();
+    // makeControlDecision();
+    drive_msg_.curvature = 0.0;
+    drive_msg_.velocity = 0.0;
 
     // Add timestamps to all messages.
     local_viz_msg_.header.stamp = ros::Time::now();

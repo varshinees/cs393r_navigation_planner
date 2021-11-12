@@ -6,7 +6,6 @@
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
 #include "amrl_msgs/Pose2Df.h"
-#include "amrl_msgs/VisualizationMsg.h"
 #include "glog/logging.h"
 #include "ros/ros.h"
 #include "shared/math/math_util.h"
@@ -24,14 +23,10 @@ using namespace std;
 using namespace math_util;
 using namespace ros_helpers;
 using namespace Eigen;
-using amrl_msgs::VisualizationMsg;
 using geometry::line2f;
 
 namespace
 {
-  ros::Publisher viz_pub_;
-  VisualizationMsg local_viz_msg_;
-  VisualizationMsg global_viz_msg_;
   // Epsilon value for handling limited numerical precision.
   const float kEpsilon = 1e-3;
 } //namespace
@@ -52,19 +47,22 @@ void Planner::SetMap(const string &map_file) {
 }
 
 const vector<Vector2f>& Planner::GetPath() {
-  return path;
+  return path_;
 }
 
 void Planner::SetGlobalGoal(const Vector2f &loc, float angle) {
+  cout << "SetGlobalGoal" << endl;
   global_goal_mloc_ = loc;
   global_goal_mangle_ = angle;
   global_goal_set_ = true;
 }
 
-float Planner::GetScore_(const Vector2f& loc, const Vector2f& prev_loc, float prev_cost) {  
-  float cost = prev_cost + (prev_loc - loc).norm(); // TODO: check this
-  float heuristic = (global_goal_mloc_ - loc).norm();
-  return cost + heuristic;
+float Planner::GetCost_(const Vector2f& loc, const Vector2f& prev_loc, float prev_cost) {  
+  return prev_cost + (prev_loc - loc).norm();
+}
+
+float Planner::GetHeuristic_(const Vector2f& loc) {  
+  return (global_goal_mloc_ - loc).norm();
 }
 
 void Planner::Neighbors_(const Vector2f& loc, vector<Vector2f>* neighbors) {
@@ -88,55 +86,72 @@ bool Planner::AtGoal(const Vector2f& robot_mloc) {
   return (robot_mloc - global_goal_mloc_).norm() < GRID_SIZE;
 }
 
+// implements the A* algorithm to find the best path to the goal
 void Planner::GetGlobalPlan(const Vector2f& robot_mloc, float robot_mangle) {
-  if (!global_goal_set_) {return;}
-
-  path.clear();
+  
+  if (!global_goal_set_) { return; }
 
   // priority queue stores <SearchState, score>
-  SimpleQueue<SearchState, float> frontier;
-  frontier.Push(SearchState{curr_loc: robot_mloc, cost: 0, parent: nullptr}, 0);
+  SimpleQueue<struct SearchState, float> frontier;
+  struct SearchState start_state;
+  start_state.curr_loc = robot_mloc;
+  start_state.cost = 0.0;
+  frontier.Push(start_state, 0.0);
   
   // keep track of visited search states
   unordered_set<Vector2f, Vector2fHash> visited;
   // keep track of the parents of each search states
   // key: child, value: parent
-  // unordered_map<Vector2f, Vector2f, Vector2fHash> parents;
+  unordered_map<Vector2f, Vector2f, Vector2fHash> parents;
 
-  // parent = {}, parent[start] = Null
-  // cost = {}
-  // cost[start] = 0             // Cost from start
   Vector2f current, next;
-  SearchState curr_state;
-  float curr_cost, score;
+  struct SearchState curr_state;
+  float curr_cost, cost, heuristic;
   while (!frontier.Empty()){
     curr_state = frontier.Pop();
-    if (visited)
     current = curr_state.curr_loc;
-    
-    if (visited.find(current) != visited.end()) { continue; } // TODO: check if current is visited
+    visited.insert(current);
+    // if (visited.find(current) != visited.end()) { continue; } 
     curr_cost = curr_state.cost;
 
-    if (AtGoal(current)) {break;}
+    if (AtGoal(current)) { break; }
     vector<Vector2f> neighbors;
     Neighbors_(current, &neighbors);
-    for (Vector2f next : neighbors) {
-      score = GetScore_(next, current, curr_cost);
-      if ()
-      break;
-
+    for (Vector2f& next : neighbors) {
+      if (visited.find(next) != visited.end()) { continue; }
+      cost = GetCost_(next, current, curr_cost);
+      heuristic = GetHeuristic_(next);
+      struct SearchState next_state;
+      next_state.curr_loc = next;
+      next_state.cost = cost;
+      if (frontier.Push(next_state, cost + heuristic)) {
+        parents.insert_or_assign(next, current);
+      }
     }
-
-
-  //   for next in neighbors(current):
-  //     new_cost = cost[current] + EdgeCost[current, next]
-  //     if next not in cost or new_cost < cost[next]:
-  //       cost[next] = new_cost  // Insertion or edit
-  //       frontier.put(next, new_cost + heuristic(next))
-  //       parent[next] = current
   }
 
+  // construct path
+  path_.clear();
+  if (!AtGoal(current)) { return; }
+  
+  path_.insert(path_.begin(), current);
+  while (current != start_state.curr_loc) {
+    current = parents.at(current);
+    path_.insert(path_.begin(), current);
+  }
+}
 
+void Planner::VisualizePath(VisualizationMsg& global_viz_msg) {
+  if (!global_goal_set_) { return; }
+
+  // cout << "path size: " << path_.size() << endl;
+  for (size_t i = 0; i < path_.size() - 1; ++i) {
+    // printf("(%f, %f) --> ", path_[i].x(), path_[i].y());
+    visualization::DrawLine(path_[i], path_[i+1], 0x000000, global_viz_msg);
+  }
+  // cout << endl;
+
+  visualization::DrawCross(global_goal_mloc_, 0.3, 0xFF0000, global_viz_msg);
 }
 
 } // namespace planner
