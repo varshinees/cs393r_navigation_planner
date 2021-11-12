@@ -87,7 +87,7 @@ void Planner::Neighbors_(const Vector2f& loc, vector<Vector2f>* neighbors) {
 // checks if current location is close enough to the goal location
 bool Planner::AtGoal(const Vector2f& robot_mloc) {
   if (!global_goal_set_) { return true; }
-  return (robot_mloc - global_goal_mloc_).norm() < GRID_SIZE;
+  return (robot_mloc - global_goal_mloc_).norm() < STOP_DIST;
 }
 
 // finds the next local goal along the global navigation plan

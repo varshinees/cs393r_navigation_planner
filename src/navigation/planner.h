@@ -14,8 +14,9 @@ using amrl_msgs::VisualizationMsg;
 
 namespace planner {
 
-const float GRID_SIZE = 0.5;
+const float GRID_SIZE = 0.1;
 const float CIRCLE_RADIUS = 2.0;
+const float STOP_DIST = 0.5;
 
 struct SearchState {
   Vector2f curr_loc;

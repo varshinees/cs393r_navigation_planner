@@ -348,7 +348,7 @@ namespace navigation
     //return free_path_length +  w_clearance * clearance + w_goal_dist * (HORIZON - next_goal_dist);
     // return free_path_length + w_clearance * clearance + w_goal_dist * (MAX_CURVATURE - abs(curvature));
     // return free_path_length + w_clearance * clearance + w_goal_dist * local_goal_dist;
-    return local_goal_dist;
+    return -local_goal_dist;
   }
 
   struct PathOption Navigation::getBestPathOption() {
@@ -383,6 +383,9 @@ namespace navigation
     float curr_velocity = getLatencyVelocity();
     float remaining_dist = best_path.free_path_length - getLatencyDistance();
     remaining_dist = remaining_dist > 0 ? remaining_dist : 0;
+    // calculates Euclidean distance to goal from current location
+    float goal_dist = (nav_goal_loc_ - robot_loc_).norm();
+    remaining_dist = remaining_dist > goal_dist ? goal_dist : remaining_dist;
     float decelerate_dist = -1 * pow(curr_velocity, 2) / (2 * DECELERATION);
 
     float accelerate_final_v = getNextVelocity(ACCELERATION);
