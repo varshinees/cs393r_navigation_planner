@@ -15,6 +15,7 @@ using amrl_msgs::VisualizationMsg;
 namespace planner {
 
 const float GRID_SIZE = 0.5;
+const float CIRCLE_RADIUS = 2.0;
 
 struct SearchState {
   Vector2f curr_loc;
@@ -41,11 +42,11 @@ public:
   void SetGlobalGoal(const Vector2f &loc, float angle);
   void GetGlobalPlan(const Vector2f& odom_loc, float odom_angle);
 	const vector<Vector2f>& GetPath();
+  Vector2f GetLocalGoal(const Vector2f& robot_mloc, float robot_mangle);
+  bool AtGoal(const Vector2f& robot_mloc);
   void VisualizePath(VisualizationMsg& global_viz_msg);
 
 private:
-  
-
 	Vector2f global_goal_mloc_;
 	float global_goal_mangle_;
   bool global_goal_set_;
@@ -53,13 +54,13 @@ private:
 
   vector_map::VectorMap map_;
   vector<Vector2f> path_;
+  size_t path_start_idx;
   // constexpr static float GRID_SIZE = 0.5;
 
   // get the heuristic score of a location
   float GetCost_(const Vector2f& loc, const Vector2f& prev_loc, float prev_cost);
   float GetHeuristic_(const Vector2f& loc);
   void Neighbors_(const Vector2f& loc, vector<Vector2f>* neighbors);
-  bool AtGoal(const Vector2f& robot_mloc);
 };
 
 } // namespace planner

@@ -90,7 +90,6 @@ namespace navigation
 
   void Navigation::SetNavGoal(const Vector2f &loc, float angle)
   {
-    cout << "Set Nav Goal" << endl;
     nav_goal_loc_ = loc;
     nav_goal_angle_ = angle;
     planner.SetGlobalGoal(loc, angle);
@@ -224,24 +223,6 @@ namespace navigation
     return min_path_len;
   }
 
-  // float Navigation::getGoalDist() {
-  //   float x = nav_goal_loc_.x() - robot_loc_.x();
-  //   float y = nav_goal_loc_.y() - robot_loc_.y();
-    
-  //   // TODO: fix me. assume goal is on the arc the car is traveling
-  //   if (drive_msg_.curvature == 0) {
-  //     if (y <= EPSILON && y >= -EPSILON && x >= EPSILON ) {
-  //       return x;
-  //     } else {
-  //       return 0; // TODO: fix me
-  //     }
-  //   }
-  //   float r_c = 1 / drive_msg_.curvature;
-  //   r_c = r_c > 0 ? r_c : -r_c;
-  //   float theta = asin(x/r_c);
-  //   return theta * r_c;
-  // }
-
   float Navigation::getClearance(float curvature, const Eigen::Vector2f &p, float free_path_length) {
     // if there's no obstacle, the LIDAR returns its limit
     if (norm(p.x(), p.y()) >= HORIZON - kEpsilon)
@@ -311,13 +292,43 @@ namespace navigation
     return min_clearance;
   }
 
-  float Navigation::getScore(float curvature, struct PathOption &path) {
-    float w_clearance = 0.3;
-    float w_goal_dist = 0.9;
+  Vector2f Navigation::getNextLoc(float curvature) {
+    float d = 1.0 / MAX_CURVATURE;
+    if ( abs(curvature) < kEpsilon ) { return Vector2f(d, 0); }
+    float theta = d * curvature;
+    return Vector2f(sin(theta) / curvature, (1-cos(theta)) / curvature);
+  }
+
+  float Navigation::getLocalGoalDist(Vector2f local_goal_loc, Vector2f robot_loc) {
+    return (local_goal_loc - robot_loc).norm();
+    
+    // float x = local_goal_loc.x() - robot_loc_.x();
+    // float y = local_goal_loc.y() - robot_loc_.y();
+    
+    // // TODO: fix me. assume goal is on the arc the car is traveling
+    // if (drive_msg_.curvature == 0) {
+    //   if (abs(y) <= EPSILON && x >= EPSILON ) {
+    //     return x;
+    //   } else {
+    //     return 0; 
+    //   }
+    // }
+    // float r_c = 1 / drive_msg_.curvature;
+    // r_c = r_c > 0 ? r_c : -r_c;
+    // float theta = asin(x/r_c);
+    // return theta * r_c;
+  }
+
+  float Navigation::getScore(float curvature, struct PathOption &path, const Vector2f& local_goal_loc) {
+    // float w_clearance = 0.3;
+    // float w_goal_dist = 0.9;
     
     float free_path_length = getClosestObstacleDistance(curvature);
     float clearance = getMinClearance(curvature, free_path_length);
-
+    float local_goal_dist = getLocalGoalDist(local_goal_loc, getNextLoc(curvature));
+    if (abs(curvature) < 0.1)
+      printf("curvature: %.2f, local_goal_dist: %.4f\n", curvature, local_goal_dist);
+    
     // float current_goal_dist = HORIZON;
     // float travel_distance = (getLatencyVelocity() + getNextVelocity()) / 2 * INTERVAL;
     // float next_goal_dist;
@@ -335,17 +346,23 @@ namespace navigation
     path.clearance = clearance;
     
     //return free_path_length +  w_clearance * clearance + w_goal_dist * (HORIZON - next_goal_dist);
-    return free_path_length + w_clearance * clearance + w_goal_dist * (MAX_CURVATURE - abs(curvature));
+    // return free_path_length + w_clearance * clearance + w_goal_dist * (MAX_CURVATURE - abs(curvature));
+    // return free_path_length + w_clearance * clearance + w_goal_dist * local_goal_dist;
+    return local_goal_dist;
   }
 
   struct PathOption Navigation::getBestPathOption() {
+    Vector2f local_goal_loc = planner.GetLocalGoal(robot_loc_, robot_angle_);
+    visualization::DrawCross(local_goal_loc, 0.3, 0x008000, global_viz_msg_);
+    visualization::DrawArc(Vector2f(0,0), planner::CIRCLE_RADIUS, 0, M_PI * 2, 0xe608ff, local_viz_msg_);
+    
     struct PathOption best_path = {0, 0, 0, Vector2f(0,0), Vector2f(0,0)};
     struct PathOption path = {0, 0, 0, Vector2f(0,0), Vector2f(0,0)};
 
     const float CURVATURE_STEP = 0.05;
     float best_score = -100000.0;
     for (float c = MIN_CURVATURE; c <= MAX_CURVATURE; c += CURVATURE_STEP) {
-      float score = getScore(c, path);
+      float score = getScore(c, path, local_goal_loc);
       visualization::DrawPathOption(c, path.free_path_length, 0, local_viz_msg_);
       if (score > best_score) {
         best_path.curvature = path.curvature;
@@ -409,9 +426,16 @@ namespace navigation
     if (!odom_initialized_)
       return;
 
-    // makeControlDecision();
-    drive_msg_.curvature = 0.0;
-    drive_msg_.velocity = 0.0;
+    if (!planner.AtGoal(robot_loc_)) {
+      makeControlDecision();
+    } else {
+      drive_msg_.velocity = 0.0;
+    }
+    // Vector2f local_goal_loc = planner.GetLocalGoal(robot_loc_, robot_angle_);
+    // visualization::DrawCross(local_goal_loc, 0.3, 0x008000, global_viz_msg_);
+    // visualization::DrawArc(Vector2f(0,0), planner::CIRCLE_RADIUS, 0, M_PI * 2, 0xe608ff, local_viz_msg_);
+    // drive_msg_.curvature = 0.0;
+    // drive_msg_.velocity = 0.0;
 
     // Add timestamps to all messages.
     local_viz_msg_.header.stamp = ros::Time::now();

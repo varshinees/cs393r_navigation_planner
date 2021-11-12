@@ -41,7 +41,8 @@ Planner::Planner(): global_goal_mloc_(0,0),
                     lattices_({Vector2f(GRID_SIZE, 0), Vector2f(-GRID_SIZE, 0),
                                Vector2f(0, GRID_SIZE), Vector2f(0, -GRID_SIZE),
                                Vector2f(GRID_SIZE, GRID_SIZE), Vector2f(-GRID_SIZE, -GRID_SIZE),
-                               Vector2f(GRID_SIZE, -GRID_SIZE), Vector2f(-GRID_SIZE, GRID_SIZE)})
+                               Vector2f(GRID_SIZE, -GRID_SIZE), Vector2f(-GRID_SIZE, GRID_SIZE)}),
+                    path_start_idx(0)
 {}
 
 void Planner::SetMap(const string &map_file) {
@@ -85,7 +86,26 @@ void Planner::Neighbors_(const Vector2f& loc, vector<Vector2f>* neighbors) {
 
 // checks if current location is close enough to the goal location
 bool Planner::AtGoal(const Vector2f& robot_mloc) {
+  if (!global_goal_set_) { return true; }
   return (robot_mloc - global_goal_mloc_).norm() < GRID_SIZE;
+}
+
+// finds the next local goal along the global navigation plan
+Vector2f Planner::GetLocalGoal(const Vector2f& robot_mloc, float robot_mangle) {
+  if (!global_goal_set_) { return robot_mloc; }
+
+  size_t i = path_start_idx;
+  while (i < path_.size() && (path_[i] - robot_mloc).norm() < CIRCLE_RADIUS) {
+    ++i;
+  }
+  // updates the global plan if we cannot find a local goal
+  if (i == path_start_idx) {
+    GetGlobalPlan(robot_mloc, robot_mangle);
+    path_start_idx = 0;
+    while (i < path_.size() && (path_[i] - robot_mloc).norm() < CIRCLE_RADIUS) { ++i; }
+  }
+  path_start_idx = i;
+  return path_[path_start_idx - 1];
 }
 
 // implements the A* algorithm to find the best path to the goal
@@ -146,12 +166,9 @@ void Planner::GetGlobalPlan(const Vector2f& robot_mloc, float robot_mangle) {
 void Planner::VisualizePath(VisualizationMsg& global_viz_msg) {
   if (!global_goal_set_) { return; }
 
-  // cout << "path size: " << path_.size() << endl;
   for (size_t i = 0; i < path_.size() - 1; ++i) {
-    // printf("(%f, %f) --> ", path_[i].x(), path_[i].y());
     visualization::DrawLine(path_[i], path_[i+1], 0x000000, global_viz_msg);
   }
-  // cout << endl;
 
   visualization::DrawCross(global_goal_mloc_, 0.3, 0xFF0000, global_viz_msg);
 }
