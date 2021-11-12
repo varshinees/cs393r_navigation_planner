@@ -94,7 +94,7 @@ namespace navigation
     nav_goal_loc_ = loc;
     nav_goal_angle_ = angle;
     planner.SetGlobalGoal(loc, angle);
-    planner.GetGlobalPlan(Vector2f(14,16), 0);
+    planner.GetGlobalPlan(robot_loc_, robot_angle_);
   }
 
   void Navigation::UpdateLocation(const Eigen::Vector2f &loc, float angle)

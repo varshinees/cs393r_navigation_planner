@@ -23,6 +23,8 @@ using namespace std;
 using namespace math_util;
 using namespace ros_helpers;
 using namespace Eigen;
+using namespace navigation;
+using namespace geometry;
 using geometry::line2f;
 
 namespace
@@ -66,16 +68,16 @@ float Planner::GetHeuristic_(const Vector2f& loc) {
 }
 
 void Planner::Neighbors_(const Vector2f& loc, vector<Vector2f>* neighbors) {
-  Vector2f intersection_point(0,0);
+  // Vector2f intersection_point(0,0);
   for (Vector2f lattice : lattices_) {
     Vector2f next = loc + lattice;
     line2f line(loc.x(), loc.y(), next.x(), next.y());
-    bool intersects = false;
+    float distance = 0.0;
     for (line2f map_line : map_.lines) {
-      intersects = map_line.Intersection(line, &intersection_point);
-      if (intersects) { break; }
+      distance = MinDistanceLineLine(map_line.p0, map_line.p1, loc, next);
+      if (distance <= CAR_WIDTH_SAFE / 2) { break; }
     }
-    if (!intersects) {
+    if (distance > CAR_WIDTH_SAFE / 2) {
       neighbors->push_back(next);
     }
   }

@@ -44,6 +44,18 @@ struct PathOption {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
 
+// Car constant
+const float SAFE_MARGIN = 0.1;
+const float CAR_LENGTH = 0.4826;
+const float CAR_LENGTH_SAFE = CAR_LENGTH + SAFE_MARGIN * 2;
+const float CAR_BASE = 0.343;
+const float CAR_WIDTH = 0.2667;
+const float CAR_WIDTH_SAFE = CAR_WIDTH + SAFE_MARGIN * 2;
+// const float MIN_CURVATURE = -1.7857;
+// const float MAX_CURVATURE = 1.7857;
+const float MIN_CURVATURE = -1.7;
+const float MAX_CURVATURE = 1.7;
+
 class Navigation {
  public:
 
@@ -135,18 +147,6 @@ class Navigation {
   const float MAX_VELOCITY = 1.0;
   const float ACCELERATION = 4.0;
   const float DECELERATION = -4.0;
-  
-  // Car constant
-  const float SAFE_MARGIN = 0.1;
-  const float CAR_LENGTH = 0.4826;
-  const float CAR_LENGTH_SAFE = CAR_LENGTH + SAFE_MARGIN * 2;
-  const float CAR_BASE = 0.343;
-  const float CAR_WIDTH = 0.2667;
-  const float CAR_WIDTH_SAFE = CAR_WIDTH + SAFE_MARGIN * 2;
-  // float MIN_CURVATURE = -1.7857;
-  // float MAX_CURVATURE = 1.7857;
-  float MIN_CURVATURE = -1.7;
-  float MAX_CURVATURE = 1.7;
 
   // LIDAR constants
   const float HORIZON = 10.0;  // The observation limit
