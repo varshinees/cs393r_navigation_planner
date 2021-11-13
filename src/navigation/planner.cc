@@ -36,6 +36,8 @@ namespace
 
 CONFIG_FLOAT(CIRCLE_RADIUS, "CIRCLE_RADIUS");
 CONFIG_FLOAT(STOP_DIST, "STOP_DIST");
+CONFIG_FLOAT(SEARCH_BUFFER, "SEARCH_BUFFER");
+CONFIG_FLOAT(CLEARANCE, "CLEARANCE");
 
 namespace planner {
 
@@ -55,10 +57,6 @@ void Planner::SetMap(const string &map_file) {
   map_.Load(map_file);
 }
 
-const vector<Vector2f>& Planner::GetPath() {
-  return path_;
-}
-
 void Planner::SetGlobalGoal(const Vector2f &loc, float angle) {
   cout << "SetGlobalGoal" << endl;
   global_goal_mloc_ = loc;
@@ -75,16 +73,15 @@ float Planner::GetHeuristic_(const Vector2f& loc) {
 }
 
 void Planner::Neighbors_(const Vector2f& loc, vector<Vector2f>* neighbors) {
-  // Vector2f intersection_point(0,0);
   for (Vector2f lattice : lattices_) {
     Vector2f next = loc + lattice;
     line2f line(loc.x(), loc.y(), next.x(), next.y());
     float distance = 0.0;
     for (line2f map_line : map_.lines) {
       distance = MinDistanceLineLine(map_line.p0, map_line.p1, loc, next);
-      if (distance <= CAR_WIDTH_SAFE / 2) { break; }
+      if (distance <= CONFIG_CLEARANCE) { break; }
     }
-    if (distance > CAR_WIDTH_SAFE / 2) {
+    if (distance > CONFIG_CLEARANCE) {
       neighbors->push_back(next);
     }
   }
@@ -100,21 +97,13 @@ bool Planner::AtGoal(const Vector2f& robot_mloc) {
 Vector2f Planner::GetLocalGoal(const Vector2f& robot_mloc, float robot_mangle) {
   if (!global_goal_set_) { return robot_mloc; }
 
-  // cout << "2 GetLocalGoal" << endl;
-  // path_start_idx = 0;
-  const size_t prev_buffer = 5;
-  path_start_idx = path_start_idx <= prev_buffer ? 0 : path_start_idx - prev_buffer;
+  path_start_idx = path_start_idx <= CONFIG_SEARCH_BUFFER ? 0 : path_start_idx - CONFIG_SEARCH_BUFFER;
   size_t i = path_start_idx;
-  // printf("path_start_idx: %ld, path length: %ld\n", path_start_idx, path_.size());
-  while (i < path_.size() && (path_[i] - robot_mloc).norm() < CONFIG_CIRCLE_RADIUS) { 
-    // cout << "here" << endl;
-    ++i; 
-  }
+  while (i < path_.size() && (path_[i] - robot_mloc).norm() < CONFIG_CIRCLE_RADIUS) { ++i; }
   // updates the global plan if we cannot find a local goal
   if (i == path_start_idx) {
     GetGlobalPlan(robot_mloc, robot_mangle);
     while (i < path_.size() && (path_[i] - robot_mloc).norm() < CONFIG_CIRCLE_RADIUS) { ++i; }
-    // cout << "after get global plan: " << i << endl;
   }
   path_start_idx = i;
   return path_[path_start_idx - 1];
@@ -123,7 +112,6 @@ Vector2f Planner::GetLocalGoal(const Vector2f& robot_mloc, float robot_mangle) {
 // implements the A* algorithm to find the best path to the goal
 void Planner::GetGlobalPlan(const Vector2f& robot_mloc, float robot_mangle) {
   if (!global_goal_set_) { return; }
-  // cout << "1 GetGlobalPlan" << endl;
   path_start_idx = 0;
 
   // priority queue stores <SearchState, score>
@@ -146,7 +134,6 @@ void Planner::GetGlobalPlan(const Vector2f& robot_mloc, float robot_mangle) {
     curr_state = frontier.Pop();
     current = curr_state.curr_loc;
     visited.insert(current);
-    // if (visited.find(current) != visited.end()) { continue; } 
     curr_cost = curr_state.cost;
 
     if (AtGoal(current)) { break; }

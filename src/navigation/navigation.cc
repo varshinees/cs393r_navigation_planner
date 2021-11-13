@@ -325,8 +325,8 @@ namespace navigation
 
     free_path_length = free_path_length > CONFIG_MAX_LOCAL_GOAL_DIST ? CONFIG_MAX_LOCAL_GOAL_DIST : free_path_length;
     
-    printf("free_path_length: %.2f, clearance: %.2f, (CONFIG_MAX_LOCAL_GOAL_DIST - local_goal_dist): %.2f\n",
-          free_path_length, clearance, (CONFIG_MAX_LOCAL_GOAL_DIST - local_goal_dist));
+    // printf("free_path_length: %.2f, clearance: %.2f, (CONFIG_MAX_LOCAL_GOAL_DIST - local_goal_dist): %.2f\n",
+    //       free_path_length, clearance, (CONFIG_MAX_LOCAL_GOAL_DIST - local_goal_dist));
     return free_path_length + CONFIG_W_CLEARANCE * clearance + CONFIG_W_GOAL_DIST * (CONFIG_MAX_LOCAL_GOAL_DIST - local_goal_dist);
   }
 
@@ -414,11 +414,6 @@ namespace navigation
     } else {
       drive_msg_.velocity = 0.0;
     }
-    // Vector2f local_goal_loc = planner.GetLocalGoal(robot_loc_, robot_angle_);
-    // visualization::DrawCross(local_goal_loc, 0.3, 0x008000, global_viz_msg_);
-    // visualization::DrawArc(Vector2f(0,0), planner::CIRCLE_RADIUS, 0, M_PI * 2, 0xe608ff, local_viz_msg_);
-    // drive_msg_.curvature = 0.0;
-    // drive_msg_.velocity = 0.0;
 
     // Add timestamps to all messages.
     local_viz_msg_.header.stamp = ros::Time::now();
