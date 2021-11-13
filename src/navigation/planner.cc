@@ -38,6 +38,7 @@ CONFIG_FLOAT(CIRCLE_RADIUS, "CIRCLE_RADIUS");
 CONFIG_FLOAT(STOP_DIST, "STOP_DIST");
 CONFIG_FLOAT(SEARCH_BUFFER, "SEARCH_BUFFER");
 CONFIG_FLOAT(CLEARANCE, "CLEARANCE");
+CONFIG_FLOAT(HEURISTIC_INFLATION, "HEURISTIC_INFLATION");
 
 namespace planner {
 
@@ -58,7 +59,6 @@ void Planner::SetMap(const string &map_file) {
 }
 
 void Planner::SetGlobalGoal(const Vector2f &loc, float angle) {
-  cout << "SetGlobalGoal" << endl;
   global_goal_mloc_ = loc;
   global_goal_mangle_ = angle;
   global_goal_set_ = true;
@@ -69,7 +69,7 @@ float Planner::GetCost_(const Vector2f& loc, const Vector2f& prev_loc, float pre
 }
 
 float Planner::GetHeuristic_(const Vector2f& loc) {  
-  return (global_goal_mloc_ - loc).norm();
+  return (global_goal_mloc_ - loc).norm() * CONFIG_HEURISTIC_INFLATION;
 }
 
 void Planner::Neighbors_(const Vector2f& loc, vector<Vector2f>* neighbors) {
