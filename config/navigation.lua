@@ -1,0 +1,8 @@
+-- planner
+CIRCLE_RADIUS = 2.0;
+STOP_DIST = 0.5;
+
+-- scoring function
+W_CLEARANCE = 0.3;
+W_GOAL_DIST = 5.0;
+MAX_LOCAL_GOAL_DIST = CIRCLE_RADIUS

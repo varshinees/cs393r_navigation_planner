@@ -33,6 +33,7 @@
 #include "navigation.h"
 #include "visualization/visualization.h"
 #include <cmath>
+#include "config_reader/config_reader.h"
 
 #include "planner.h"
 
@@ -62,8 +63,14 @@ namespace
   const float kEpsilon = 1e-3;
 } //namespace
 
+CONFIG_FLOAT(W_CLEARANCE, "W_CLEARANCE");
+CONFIG_FLOAT(W_GOAL_DIST, "W_GOAL_DIST");
+CONFIG_FLOAT(MAX_LOCAL_GOAL_DIST, "MAX_LOCAL_GOAL_DIST");
+
 namespace navigation
 {
+
+  config_reader::ConfigReader config_reader_({"config/navigation.lua"});
 
   Navigation::Navigation(const string &map_file, ros::NodeHandle *n) : odom_initialized_(false),
                                                                        localization_initialized_(false),
@@ -292,6 +299,7 @@ namespace navigation
     return min_clearance;
   }
 
+  // returns robot location at next timestamp in current baselink frame
   Vector2f Navigation::getNextLoc(float curvature) {
     float d = 1.0 / MAX_CURVATURE;
     if ( abs(curvature) < kEpsilon ) { return Vector2f(d, 0); }
@@ -299,62 +307,33 @@ namespace navigation
     return Vector2f(sin(theta) / curvature, (1-cos(theta)) / curvature);
   }
 
-  float Navigation::getLocalGoalDist(Vector2f local_goal_loc, Vector2f robot_loc) {
-    return (local_goal_loc - robot_loc).norm();
-    
-    // float x = local_goal_loc.x() - robot_loc_.x();
-    // float y = local_goal_loc.y() - robot_loc_.y();
-    
-    // // TODO: fix me. assume goal is on the arc the car is traveling
-    // if (drive_msg_.curvature == 0) {
-    //   if (abs(y) <= EPSILON && x >= EPSILON ) {
-    //     return x;
-    //   } else {
-    //     return 0; 
-    //   }
-    // }
-    // float r_c = 1 / drive_msg_.curvature;
-    // r_c = r_c > 0 ? r_c : -r_c;
-    // float theta = asin(x/r_c);
-    // return theta * r_c;
+  float Navigation::getLocalGoalDist(const Vector2f& local_goal_loc, const Vector2f& robot_next_loc) {
+    // transform local goal to current baselink frame
+    Vector2f transformed_local_goal = Rotation2Df(-robot_angle_) * (local_goal_loc - robot_loc_);
+    return (transformed_local_goal - robot_next_loc).norm();
   }
 
   float Navigation::getScore(float curvature, struct PathOption &path, const Vector2f& local_goal_loc) {
-    // float w_clearance = 0.3;
-    // float w_goal_dist = 0.9;
     
     float free_path_length = getClosestObstacleDistance(curvature);
     float clearance = getMinClearance(curvature, free_path_length);
     float local_goal_dist = getLocalGoalDist(local_goal_loc, getNextLoc(curvature));
-    if (abs(curvature) < 0.1)
-      printf("curvature: %.2f, local_goal_dist: %.4f\n", curvature, local_goal_dist);
-    
-    // float current_goal_dist = HORIZON;
-    // float travel_distance = (getLatencyVelocity() + getNextVelocity()) / 2 * INTERVAL;
-    // float next_goal_dist;
-    // if(curvature == 0) {
-    //   next_goal_dist = current_goal_dist - travel_distance;
-    // } else {
-    //   float angle = travel_distance * curvature;
-    //   float x = sin(angle) / curvature;
-    //   float y = (1 - cos(angle)) / curvature;
-    //   next_goal_dist = norm(current_goal_dist - x, y);
-    // }
     
     path.curvature = curvature;
     path.free_path_length = free_path_length;
     path.clearance = clearance;
+
+    free_path_length = free_path_length > CONFIG_MAX_LOCAL_GOAL_DIST ? CONFIG_MAX_LOCAL_GOAL_DIST : free_path_length;
     
-    //return free_path_length +  w_clearance * clearance + w_goal_dist * (HORIZON - next_goal_dist);
-    // return free_path_length + w_clearance * clearance + w_goal_dist * (MAX_CURVATURE - abs(curvature));
-    // return free_path_length + w_clearance * clearance + w_goal_dist * local_goal_dist;
-    return -local_goal_dist;
+    printf("free_path_length: %.2f, clearance: %.2f, (CONFIG_MAX_LOCAL_GOAL_DIST - local_goal_dist): %.2f\n",
+          free_path_length, clearance, (CONFIG_MAX_LOCAL_GOAL_DIST - local_goal_dist));
+    return free_path_length + CONFIG_W_CLEARANCE * clearance + CONFIG_W_GOAL_DIST * (CONFIG_MAX_LOCAL_GOAL_DIST - local_goal_dist);
   }
 
   struct PathOption Navigation::getBestPathOption() {
     Vector2f local_goal_loc = planner.GetLocalGoal(robot_loc_, robot_angle_);
     visualization::DrawCross(local_goal_loc, 0.3, 0x008000, global_viz_msg_);
-    visualization::DrawArc(Vector2f(0,0), planner::CIRCLE_RADIUS, 0, M_PI * 2, 0xe608ff, local_viz_msg_);
+    visualization::DrawArc(Vector2f(0,0), CONFIG_MAX_LOCAL_GOAL_DIST, 0, M_PI * 2, 0xe608ff, local_viz_msg_);
     
     struct PathOption best_path = {0, 0, 0, Vector2f(0,0), Vector2f(0,0)};
     struct PathOption path = {0, 0, 0, Vector2f(0,0), Vector2f(0,0)};
@@ -431,6 +410,7 @@ namespace navigation
 
     if (!planner.AtGoal(robot_loc_)) {
       makeControlDecision();
+      // drive_msg_.curvature = 0.0;
     } else {
       drive_msg_.velocity = 0.0;
     }

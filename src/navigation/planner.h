@@ -15,8 +15,8 @@ using amrl_msgs::VisualizationMsg;
 namespace planner {
 
 const float GRID_SIZE = 0.1;
-const float CIRCLE_RADIUS = 2.0;
-const float STOP_DIST = 0.5;
+// const float CIRCLE_RADIUS = 2.0;
+// const float STOP_DIST = 0.5;
 
 struct SearchState {
   Vector2f curr_loc;
@@ -56,7 +56,6 @@ private:
   vector_map::VectorMap map_;
   vector<Vector2f> path_;
   size_t path_start_idx;
-  // constexpr static float GRID_SIZE = 0.5;
 
   // get the heuristic score of a location
   float GetCost_(const Vector2f& loc, const Vector2f& prev_loc, float prev_cost);

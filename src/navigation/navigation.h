@@ -98,7 +98,7 @@ class Navigation {
   // Returns the location of the car after the next timestep
   Vector2f getNextLoc(float curvature);
   // Returns the distance from the car to the goal
-  float getLocalGoalDist(Vector2f local_goal_loc, Vector2f robot_loc);
+  float getLocalGoalDist(const Vector2f& local_goal_loc, const Vector2f& robot_loc);
   // Returns the score of a curvature while store the path option
   float getScore(float curvature, struct PathOption &path, const Vector2f& local_goal_loc);
   // Returns the best path option
