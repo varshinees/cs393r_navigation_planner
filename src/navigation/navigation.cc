@@ -131,11 +131,11 @@ namespace navigation
   void Navigation::ObservePointCloud(const vector<Vector2f> &cloud,
                                      double time)
   {
-    point_cloud_ = cloud;
-  }
-
-  float norm(float x, float y) {
-    return sqrt(pow(x, 2) + pow(y, 2));
+    vector<Vector2f> cloud_small;
+    for (Vector2f point : cloud) {
+      if ( point.norm() < CONFIG_MAX_LOCAL_GOAL_DIST ) { cloud_small.push_back(point); }
+    }
+    point_cloud_ = cloud_small;
   }
 
   float Navigation::getLatencyVelocity()
@@ -163,7 +163,7 @@ namespace navigation
   float Navigation::getFreePathLength(const Eigen::Vector2f &p, float curvature)
   {
     // if there's no obstacle, the LIDAR returns its limit
-    if (norm(p.x(), p.y()) >= HORIZON - kEpsilon)
+    if (p.norm() >= HORIZON - kEpsilon)
       return HORIZON;
     
     // Tranform p to from the laser frame to the base_link frame
@@ -184,13 +184,13 @@ namespace navigation
     // Radius of turning
     float r_c = 1 / curvature;
     // Distance from center of turning to p
-    float r_p = norm(x, r_c - y);
+    float r_p = Vector2f(x, r_c - y).norm();
     r_c = abs(r_c);
 
     // Distance from center of turning to the car
     float r_inner_back = r_c - CAR_WIDTH_SAFE / 2;
-    float r_inner_front = 0.5 * norm(2 * r_c - CAR_WIDTH_SAFE, CAR_BASE + CAR_LENGTH_SAFE);
-    float r_outer_front = 0.5 * norm(2 * r_c + CAR_WIDTH_SAFE, CAR_BASE + CAR_LENGTH_SAFE);
+    float r_inner_front = 0.5 * Vector2f(2 * r_c - CAR_WIDTH_SAFE, CAR_BASE + CAR_LENGTH_SAFE).norm();
+    float r_outer_front = 0.5 * Vector2f(2 * r_c + CAR_WIDTH_SAFE, CAR_BASE + CAR_LENGTH_SAFE).norm();
 
     bool hit_side = r_p >= r_inner_back && r_p <= r_inner_front;
     bool hit_front = r_p >= r_inner_front && r_p <= r_outer_front;
@@ -232,7 +232,7 @@ namespace navigation
 
   float Navigation::getClearance(float curvature, const Eigen::Vector2f &p, float free_path_length) {
     // if there's no obstacle, the LIDAR returns its limit
-    if (norm(p.x(), p.y()) >= HORIZON - kEpsilon)
+    if (p.norm() >= HORIZON - kEpsilon)
       return HORIZON;
 
     float x = p.x();
@@ -251,7 +251,7 @@ namespace navigation
     bounding_angle = bounding_angle > 0 ? bounding_angle : 0;
     float r_c = 1 / curvature;
     // Distance from center of turning to p
-    float r_p = norm(x, r_c - y);
+    float r_p = Vector2f(x, r_c - y).norm();
 
     float theta = 0;
     float alpha = asin(x / r_p);
@@ -273,7 +273,7 @@ namespace navigation
 
     // Distance from center of turning to the car
     float r_inner_back = r_c - CAR_WIDTH_SAFE / 2;
-    float r_outer_front = 0.5 * norm(2 * r_c + CAR_WIDTH_SAFE, CAR_BASE + CAR_LENGTH_SAFE);
+    float r_outer_front = 0.5 * Vector2f(2 * r_c + CAR_WIDTH_SAFE, CAR_BASE + CAR_LENGTH_SAFE).norm();
 
     if (theta > 0 && theta < bounding_angle) {
       if (r_p < r_inner_back)  // p is on the inside of the car's arc

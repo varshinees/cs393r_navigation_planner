@@ -151,7 +151,7 @@ class Navigation {
   const float DECELERATION = -4.0;
 
   // LIDAR constants
-  const float HORIZON = 10.0;  // The observation limit
+  const float HORIZON = 2.0;  // The observation limit
 
   // The time interval between two control cycles
   const float INTERVAL = 0.05;
