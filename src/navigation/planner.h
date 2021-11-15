@@ -19,6 +19,7 @@ const float GRID_SIZE = 0.5;
 struct SearchState {
   Vector2f curr_loc;
   float cost;
+  Vector2f parent_loc;
 
   bool operator==(const SearchState &other) const
   { return curr_loc.x() == other.curr_loc.x() && curr_loc.y() == other.curr_loc.y(); }

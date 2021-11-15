@@ -119,7 +119,9 @@ void Planner::GetGlobalPlan(const Vector2f& robot_mloc, float robot_mangle) {
   struct SearchState start_state;
   start_state.curr_loc = robot_mloc;
   start_state.cost = 0.0;
+  start_state.parent_loc = Vector2f(-1, -1);
   frontier.Push(start_state, 0.0);
+  cout << "start state: " << start_state.curr_loc.x() << " " << start_state.curr_loc.y() << endl;
   
   // keep track of visited search states
   unordered_set<Vector2f, Vector2fHash> visited;
@@ -130,8 +132,17 @@ void Planner::GetGlobalPlan(const Vector2f& robot_mloc, float robot_mangle) {
   Vector2f current, next;
   struct SearchState curr_state;
   float curr_cost, cost, heuristic;
+  // int count = 0;
   while (!frontier.Empty()){
+    // if (count == 0) {
+    //   frontier.Print();
+    //   cout << "start state: " << start_state.curr_loc.x() << " " << start_state.curr_loc.y() << endl;
+    // }
     curr_state = frontier.Pop();
+    printf("\ncur_state: (%.2f, %.2f) | %.2f | %.2f\n", 
+            curr_state.curr_loc.x(), curr_state.curr_loc.y(), curr_state.cost, curr_state.cost + GetHeuristic_(curr_state.curr_loc)); 
+    frontier.Print();
+    // count++;
     current = curr_state.curr_loc;
     visited.insert(current);
     curr_cost = curr_state.cost;
@@ -147,6 +158,7 @@ void Planner::GetGlobalPlan(const Vector2f& robot_mloc, float robot_mangle) {
       next_state.curr_loc = next;
       next_state.cost = cost;
       if (frontier.Push(next_state, cost + heuristic)) {
+        next_state.parent_loc = current;
         parents.insert_or_assign(next, current);
       }
     }

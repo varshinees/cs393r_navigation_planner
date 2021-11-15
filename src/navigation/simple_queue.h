@@ -91,6 +91,14 @@ class SimpleQueue {
     return false;
   }
 
+  void Print() {
+    printf("-------simple queue---------\n");
+    for (auto p : values_) {
+      printf("cur_loc: (%.2f, %.2f) | %.2f | %.2f\n", 
+              p.first.curr_loc.x(), p.first.curr_loc.y(), p.first.cost, p.second);
+    }
+  }
+
   private:
   deque<pair<Value, Priority> > values_;
 };
